@@ -2,7 +2,7 @@ import numpy as np
 
 from automatic_prompt_engineer import data, llm, evaluate
 from evaluation.instruction_induction import utility
-
+import logging
 
 def get_query(prompt, eval_template, input_, output_, demo_data, demos_template):
     demos = demos_template.fill(demo_data)
@@ -41,6 +41,8 @@ def exec_accuracy_evaluator(prompts, eval_template, eval_data, demos_template, f
     # Instantiate the LLM
     model = llm.model_from_config(config['model'])
     model_outputs = model.generate_text(queries, 1)
+    for i in model_outputs:
+        logging.info("GPT Generated Text: {}".format(i))
 
     task = config['task']
     metric = utility.TASK_TO_METRIC.get(task, utility.default_metric)
@@ -72,11 +74,14 @@ def exec_accuracy_evaluator(prompts, eval_template, eval_data, demos_template, f
 class exec_evaluator(object):
     def __init__(self, api_model, config):
         # instantiate the LLM here
+        self.api_model_name = api_model
         if api_model=='llama':
             self.model = llm.Llama_Forward(config)
         elif api_model=='flan-t5':
             self.model = llm.Flan_T5(config)
-        
+        elif api_model=='llama3-8b':
+            self.model = llm.Llama3_8b(config)
+
     def evaluate(self, prompts, eval_template, eval_data, demos_template, few_shot_data, config):
         queries = []
         answers = []
@@ -117,9 +122,8 @@ class exec_evaluator(object):
 
         # Reshape the scores so that it is num_prompts x num_samples
         scores = np.array(scores).reshape(len(prompts), config['num_samples'])
-
         res = ExecAccuracyEvaluationResult(prompts, scores)
-        return res
+        return res, scores
 
     def test(self, prompts, eval_template, eval_data, config):
         queries = []

@@ -1,14 +1,22 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES="0,1"
 SFT=5
 RANDOM_PROJ='uniform'
 INTRINSIC_DIM=10
 # model_dir='lmsys/vicuna-13b-v1.3'
 # MODEL_NAME='vicuna'
-model_dir='WizardLM/WizardLM-13B-V1.1'
+# model_dir='google/gemma-1.1-2b-it'
+# MODEL_NAME='gemma'
+# model_dir="meta-llama/Meta-Llama-3-8B"
+# MODEL_NAME='llama3-8B'
+model_dir='WizardLMTeam/WizardLM-13B-V1.2'
 MODEL_NAME='wizardlm'
-export TRANSFORMERS_CACHE=/fs/nexus-scratch/bobchen
-
-datasets=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
+# API_MODEL='llama3-8b'
+API_MODEL="chatgpt"
+export HF_HOME=/scratch/workspace/vpimpalkhute_umass_edu-bo_llm/
+# export OPENAI_API_KEY="sk-proj-5L6LTSCOeJmDPMG8wCshT3BlbkFJjLugrlUCtPOcWcFgVGrF"
+export OPENAI_API_KEY="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"
+datasets=(word_sorting)
+# informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
 for i in ${datasets[@]}; do
     echo $i
@@ -18,5 +26,7 @@ for i in ${datasets[@]}; do
     --n_prompt_tokens $SFT \
     --intrinsic_dim $INTRINSIC_DIM \
     --HF_cache_dir ${model_dir} \
-    --model_name ${MODEL_NAME}
+    --model_name ${MODEL_NAME} \
+    --api_model ${API_MODEL} \
+    # --score_method task_similarity 
 done
