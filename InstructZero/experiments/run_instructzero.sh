@@ -13,8 +13,6 @@ MODEL_NAME='wizardlm'
 # API_MODEL='llama3-8b'
 API_MODEL="chatgpt"
 export HF_HOME=/scratch/workspace/vpimpalkhute_umass_edu-bo_llm/
-
-export OPENAI_API_KEY=""
 datasets=(word_sorting)
 # informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
