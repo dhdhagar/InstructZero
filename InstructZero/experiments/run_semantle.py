@@ -1,4 +1,13 @@
-import random
+"""
+SUMMARY:
+Given a set of soft prompts, we randomly initialize them using SobelEngine
+We then generate a word using LLaMA or WizardLM given the soft prompts and the instruction.
+We then compute the similarity between the generated word and the target word.
+This score is used to pick up new initialization for the soft prompts using Bayesian Optimization.
+Repeat the process until convergence.
+"""
+
+import json
 import torch
 import numpy as np
 import copy
@@ -8,9 +17,11 @@ from data.instruction_induction.load_data import load_data
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from automatic_prompt_engineer import evaluate, config, template, data
 import os
-import re
-from misc import get_test_conf, get_conf
-from evaluation.instruction_induction.exec_accuracy import exec_evaluator
+from misc import get_test_conf
+from evaluation.instruction_induction.exec_accuracy import (
+    exec_evaluator,
+    exec_accuracy_evaluator,
+)
 
 from torch.quasirandom import SobolEngine
 from botorch.models import SingleTaskGP
@@ -28,31 +39,57 @@ from misc import set_all_seed, TASKS, tkwargs, N_INIT, BATCH_SIZE, N_ITERATIONS
 
 import torch.nn.functional as F
 from sentence_transformers import SentenceTransformer
-
+from torch.nn.functional import cosine_similarity
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 hf_token = "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"
 
-# Get the current timestamp and format it
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = f"logfile_{timestamp}.log"
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
-)
+
+def semantle_evaluator(model, instruction, target_word):
+    # Generate the word
+    word = instruction[0]
+    if not word:
+        word = "None"
+    emb1 = torch.tensor(model.encode(word))
+    emb2 = torch.tensor(model.encode(target_word))
+    score = cosine_similarity(emb1, emb2, dim=0).item()
+    return score, [[score]]
+
+
+def get_conf(task):
+    conf = {
+        "generation": {
+            "num_subsamples": 1,
+            "num_demos": 10,
+            "num_prompts_per_subsample": 20,
+            "model": {
+                "gpt_config": {
+                    # 'model': 'text-ada-001'
+                }
+            },
+        },
+        "evaluation": {
+            "method": semantle_evaluator,
+            "task": task,
+            "num_samples": 0,
+            "model": {
+                "gpt_config": {
+                    # 'model': 'text-ada-001'
+                }
+            },
+        },
+    }
+    return conf
 
 
 class LMForwardAPI:
     def __init__(
         self,
         model_name=None,
-        eval_data=None,
         init_prompt=None,
         init_qa=None,
         conf=None,
         base_conf=None,
-        prompt_gen_data=None,
         random_proj=None,
         intrinsic_dim=None,
         n_prompt_tokens=None,
@@ -106,12 +143,14 @@ class LMForwardAPI:
         self.linear = torch.nn.Linear(
             intrinsic_dim, self.n_prompt_tokens * self.hidden_size, bias=False
         )
-        if self.ops_model in ["vicuna", "wizardlm", "gemma", "llama3-8B"]:
-            self.system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+        if self.ops_model in ["vicuna", "wizardlm", "gemma"]:
+            self.system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
             self.role = ["USER:", "ASSISTANT:"]
         elif self.ops_model == "alpaca":
             self.system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
             self.role = ["### Instruction:", "### Response:"]
+        elif self.ops_model == "llama3-8B":
+            self.messages = []
         else:
             NotImplementedError
 
@@ -135,19 +174,11 @@ class LMForwardAPI:
 
         # eval preparation
         self.conf = config.update_config(conf, base_conf)
-        self.eval_data = eval_data
-        self.eval_template = template.EvalTemplate(
-            "Instruction: [PROMPT]\n\nInput: [INPUT]\n Output: [OUTPUT]"
-        )
-        self.demos_template = template.DemosTemplate("Input: [INPUT]\nOutput: [OUTPUT]")
 
         if args.api_model in ["llama3-8b", "flan-t5"]:
             self.api_model = exec_evaluator(args.api_model, self.conf)
         else:
             self.api_model = args.api_model
-
-        if few_shot_data is None:
-            self.few_shot_data = prompt_gen_data
 
         self.best_train_perf = 0.0
         self.best_dev_perf = 0.0
@@ -157,7 +188,7 @@ class LMForwardAPI:
         self.best_instruction = None
         self.prompts_set = dict()
 
-    def eval(self, prompt_embedding=None, test_data=None):
+    def eval(self, similarity_model, prompt_embedding=None, target_word=""):
         self.num_call += 1
         if prompt_embedding is None:
             prompt_embedding = self.best_prompt
@@ -184,14 +215,27 @@ class LMForwardAPI:
                 f"[Prompt Embedding] Only support [list, numpy.ndarray], got `{type(prompt_embedding)}` instead."
             )
         # create the input text with the system prompt
-        input_text = f"{self.system_prompt} USER:{self.init_token} ASSISTANT:"
+        if self.ops_model == "llama3-8B":
+            self.messages.append({"role": "user", "content": self.init_token})
+            input_text = self.tokenizer.apply_chat_template(
+                self.messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            ).replace("<|begin_of_text|><|start_header_id|>user<|end_header_id|>", "")
+        else:
+            input_text = f"{self.system_prompt} USER:{self.init_token} ASSISTANT:"
+
         inputs = self.tokenizer(
             input_text, return_tensors="pt", padding=True, truncation=True
         )
+        prefix = self.tokenizer("<|begin_of_text|><|start_header_id|>user<|end_header_id|>", return_tensors="pt")
+        prefix_emb = self.embedding[prefix.input_ids]
+        prompt_embedding = torch.cat((prefix_emb, prompt_embedding.cuda()), 1)
 
         input_ids = inputs.input_ids.cuda()
         attention_mask = inputs.attention_mask.cuda()
         input_embed = self.embedding[input_ids]
+
         prompt_embedding = prompt_embedding.to(
             device=input_embed.device, dtype=input_embed.dtype
         )
@@ -212,28 +256,11 @@ class LMForwardAPI:
 
         outputs = self.model.generate(
             inputs_embeds=input_embed,
-            max_new_tokens=128,
+            max_new_tokens=256,
             attention_mask=extended_attention_mask,
             pad_token_id=self.tokenizer.pad_token_id,
         )
         instruction = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
-
-        # postprocess instruction
-        # instruction[0] = 'The instruction was to ' + instruction[0]
-        # import pdb; pdb.set_trace()
-        # start = instruction[0].find('The instruction was to')
-        # end = instruction[0].find('Comment:')
-        # if end == -1:
-        #     instruction[0] = instruction[0][start:]
-        # else:
-        #     instruction[0] = instruction[0][start: end]
-
-        # sentences = re.split(r' *[\.\?!][\'"\)\]]* *', instruction[0])
-        # search_string = 'The instruction was to'
-        # for sentence in sentences:
-        #     if sentence.startswith(search_string):
-        #         instruction[0] = sentence
-        #         break
 
         # print post-processed instruction
         logging.info(f"Instruction: {instruction}")
@@ -241,32 +268,10 @@ class LMForwardAPI:
         if instruction[0] in self.prompts_set.keys():
             (dev_perf, instruction_score) = self.prompts_set[instruction[0]]
         else:
-            if self.api_model in ["chatgpt"]:
-                dev_perf, instruction_score = evaluate.evaluate_prompts(
-                    instruction,
-                    self.eval_template,
-                    self.eval_data,
-                    self.demos_template,
-                    self.few_shot_data,
-                    self.conf["evaluation"]["method"],
-                    self.conf["evaluation"],
-                )
-                dev_perf = dev_perf.sorted()[1][0]
-                self.prompts_set[instruction[0]] = (dev_perf, instruction_score)
-            # We will fix the bugs for other api models. Stay tuned!
-            elif self.api_model.api_model_name in ["llama", "flan-t5", "llama3-8b"]:
-                dev_perf, instruction_score = self.api_model.evaluate(
-                    instruction,
-                    self.eval_template,
-                    self.eval_data,
-                    self.demos_template,
-                    self.few_shot_data,
-                    self.conf["evaluation"],
-                )
-                dev_perf = dev_perf.sorted()[1][0]
-                self.prompts_set[instruction[0]] = (dev_perf, instruction_score)
-            else:
-                raise NotImplementedError
+            dev_perf, instruction_score = semantle_evaluator(
+                similarity_model, instruction, target_word
+            )
+            self.prompts_set[instruction[0]] = (dev_perf, instruction_score)
 
         if dev_perf >= self.best_last_perf:
             self.count += 1
@@ -302,52 +307,20 @@ def run(args):
 
     similarity_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    induce_data, test_data = load_data("induce", task), load_data("eval", task)
-
-    # Get size of the induce data
-    induce_data_size = len(induce_data[0])
-    prompt_gen_size = min(int(induce_data_size), 100)
-    # Induce data is split into prompt_gen_data and eval_data
-    prompt_gen_data, eval_data = data.create_split(induce_data, prompt_gen_size)
-
-    # Data is in the form input: single item, output: list of items
-    # For prompt_gen_data, sample a single item from the output list
-    prompt_gen_data = prompt_gen_data[0], [
-        random.sample(output, 1)[0] for output in prompt_gen_data[1]
-    ]
-    # import pdb; pdb.set_trace()
-    demos_template = "Input: [INPUT]\nOutput: [OUTPUT]"
-    eval_template = "Instruction: [PROMPT]\n\nInput: [INPUT]\n\nOUTPUT: [OUTPUT]"  # change the evaluation template
-    init_prompt = ["\n"]
-    # TODO : Can we write a better prompt?
-    prompt_gen_template = "[full_DEMO]\n\nFigure out what is the task, and write ONLY the instruction."
-    # prompt_gen_template = "[full_DEMO]\n\nWhat w  as the instruction for the task?"
-    # prompt_gen_template = "[full_DEMO]\n\n Please generate appropriate instructions for the task."
+    prompt_gen_template = "\nGenerate only one word.\n\n"
 
     if args.api_model == "chatgpt":
         base_conf = "../configs/instruction_induction.yaml"
     elif args.api_model == "llama3-8b":
         base_conf = "../configs/instruction_induction_llama3-8b.yaml"
-    conf = get_conf(task, eval_data)
-
-    # make the demo automatically
-    subsampled_data = data.subsample_data(
-        prompt_gen_data, conf["generation"]["num_demos"]
-    )
-    prompt_gen_template = template.InitQATemplate(prompt_gen_template)
-    d_template = template.DemosTemplate(demos_template)
-    demos = d_template.fill(subsampled_data)
-    init_qa = [prompt_gen_template.fill(demos)]
-
+    conf = get_conf(task)
 
     model_forward_api = LMForwardAPI(
         model_name=args.model_name,
-        eval_data=eval_data,
-        init_prompt=init_prompt,
-        init_qa=init_qa,
+        init_prompt=[""],
+        init_qa=[prompt_gen_template],
         conf=conf,
         base_conf=base_conf,
-        prompt_gen_data=prompt_gen_data,
         random_proj=random_proj,
         intrinsic_dim=intrinsic_dim,
         n_prompt_tokens=n_prompt_tokens,
@@ -357,12 +330,13 @@ def run(args):
 
     # start bayesian optc
     X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=0).draw(N_INIT)
-    X_return = [model_forward_api.eval(x) for x in X]
+    X_return = [
+        model_forward_api.eval(similarity_model, x, args.semantle_word) for x in X
+    ]
     x_vec = [x[2] for x in X_return]
     x_text = [x[3] for x in X_return]
-
     Y = [X[0] for X in X_return]
-    Y_scores = [X[1].squeeze() for X in X_return]
+    Y_scores = [X[1][0] for X in X_return]
 
     X = X.to(**tkwargs)
     Y = torch.FloatTensor(Y).unsqueeze(-1).to(**tkwargs)
@@ -375,7 +349,6 @@ def run(args):
     x_vec = torch.nn.utils.rnn.pad_sequence(
         [x.squeeze(0) for x in x_vec], batch_first=True, padding_value=0
     ).to(dtype=torch.float64)
-
 
     # define matern kernel
     matern_kernel = MaternKernel(
@@ -411,10 +384,7 @@ def run(args):
     gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
     gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
     for i in range(N_ITERATIONS):  # 5 iterations, 25 batch size.
-        # print([p for p in model_forward_api.linear.parameters()][0])
-        # breakpoint()
         logging.info(f"X_train shape {X_train.shape}")
-        # logging.info(f"y_train shape {y_train.shape}")
 
         start_time = time.time()
 
@@ -446,11 +416,14 @@ def run(args):
         logging.info(f"Time for CMA-ES {time.time() - start_time}")
         for idx in np.argsort(-1 * np.array(best_vals)):
             X_next_point = torch.from_numpy(best_points[idx]).float().unsqueeze(0)
-            # Y_next_point = [model_forward_api.eval(X_next_point)]
 
-            X_next_points_return = [model_forward_api.eval(X_next_point)]
+            X_next_points_return = [
+                model_forward_api.eval(
+                    similarity_model, X_next_point, args.semantle_word
+                )
+            ]
             Y_next_point = [X[0] for X in X_next_points_return]
-            Y_scores_next_points = [X[1].squeeze() for X in X_next_points_return]
+            Y_scores_next_points = [X[1][0] for X in X_next_points_return]
             x_vec_next_point = [x[2] for x in X_next_points_return]
             x_text_next_point = [x[3] for x in X_next_points_return]
 
@@ -521,25 +494,24 @@ def run(args):
     # Evaluate on test data
     logging.info("Evaluating on test data...")
 
-    test_conf = get_test_conf(task, test_data)
-
-    test_res = ape.evaluate_prompts(
-        prompts=prompts,
-        eval_template=eval_template,
-        eval_data=test_data,
-        few_shot_data=prompt_gen_data,
-        demos_template=demos_template,
-        conf=test_conf,
-        base_conf=base_conf,
-    )
-    test_res = test_res[0]
-    test_score = test_res.sorted()[1][0]
-    return test_score
+    test_res, _ = semantle_evaluator(similarity_model, prompts, args.semantle_word)
+    return test_res
     # print(f'Test score on ChatGPT: {test_score}')
 
 
 if __name__ == "__main__":
+
     args = parse_args()
+
+    # Get the current timestamp and format it
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"semantle_{args.task}_{args.instruct_method}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
+    )
+
     # evaluation budget
     logging.info(
         f"Using a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations"

@@ -90,7 +90,7 @@ class CombinedStringKernel(Kernel):
         latent_train_z1 = z1[:, : self.lp_dim]
         latent_train_z2 = z2[:, : self.lp_dim]
 
-        if self.vector_train:
+        if self.vector_train is not None:
             K_train_instruction = self.instruction_kernel.forward(
                 self.vector_train, self.vector_train, **params
             )

@@ -64,5 +64,11 @@ def parse_args():
         default="vicuna",
         help="The model name of the open-source LLM.",
     )
+    parser.add_argument(
+        "--semantle_word",
+        type=str,
+        default="trees",
+        help="Word to predict.",
+    )
     args = parser.parse_args()
     return args

@@ -1,0 +1,403 @@
+{
+    "metadata": {
+        "num_examples": 99
+    },
+    "examples": {
+        "1": {
+            "input": "tractor",
+            "output": "0.10855371505022049"
+        },
+        "2": {
+            "input": "fruit",
+            "output": "0.2594785988330841"
+        },
+        "3": {
+            "input": "door",
+            "output": "0.059827644377946854"
+        },
+        "4": {
+            "input": "doorframe",
+            "output": "0.20982752740383148"
+        },
+        "5": {
+            "input": "evolution",
+            "output": "0.16287587583065033"
+        },
+        "6": {
+            "input": "subsoil",
+            "output": "0.1315104067325592"
+        },
+        "7": {
+            "input": "mansion",
+            "output": "0.1780390590429306"
+        },
+        "8": {
+            "input": "wallet",
+            "output": "0.19875115156173706"
+        },
+        "9": {
+            "input": "jig",
+            "output": "0.20527783036231995"
+        },
+        "10": {
+            "input": "alligator",
+            "output": "0.13940225541591644"
+        },
+        "11": {
+            "input": "griddlecakes",
+            "output": "0.0"
+        },
+        "12": {
+            "input": "shampoo",
+            "output": "0.2641197443008423"
+        },
+        "13": {
+            "input": "rosebush",
+            "output": "0.3615041971206665"
+        },
+        "14": {
+            "input": "slaveholder",
+            "output": "0.21387679874897003"
+        },
+        "15": {
+            "input": "squeaker",
+            "output": "0.17121759057044983"
+        },
+        "16": {
+            "input": "rainstorm",
+            "output": "0.07883787900209427"
+        },
+        "17": {
+            "input": "slouch",
+            "output": "0.12010566890239716"
+        },
+        "18": {
+            "input": "urination",
+            "output": "0.08120226114988327"
+        },
+        "19": {
+            "input": "aerialist",
+            "output": "0.19229722023010254"
+        },
+        "20": {
+            "input": "ballet",
+            "output": "0.25471779704093933"
+        },
+        "21": {
+            "input": "blind",
+            "output": "0.23202401399612427"
+        },
+        "22": {
+            "input": "goatee",
+            "output": "0.1890142560005188"
+        },
+        "23": {
+            "input": "library",
+            "output": "0.211125448346138"
+        },
+        "24": {
+            "input": "ovary",
+            "output": "0.2764802575111389"
+        },
+        "25": {
+            "input": "councilwoman",
+            "output": "0.21596919000148773"
+        },
+        "26": {
+            "input": "drawer",
+            "output": "0.19587469100952148"
+        },
+        "27": {
+            "input": "flytrap",
+            "output": "0.19481369853019714"
+        },
+        "28": {
+            "input": "tree",
+            "output": "0.2882457971572876"
+        },
+        "29": {
+            "input": "luggage",
+            "output": "0.13396790623664856"
+        },
+        "30": {
+            "input": "debtor",
+            "output": "0.2128274291753769"
+        },
+        "31": {
+            "input": "saddle",
+            "output": "0.15995602309703827"
+        },
+        "32": {
+            "input": "spotlight",
+            "output": "0.1315447837114334"
+        },
+        "33": {
+            "input": "sickness",
+            "output": "0.17103911936283112"
+        },
+        "34": {
+            "input": "rioting",
+            "output": "0.05978367105126381"
+        },
+        "35": {
+            "input": "secretary",
+            "output": "0.12441474944353104"
+        },
+        "36": {
+            "input": "baton",
+            "output": "0.12652668356895447"
+        },
+        "37": {
+            "input": "yawner",
+            "output": "0.09417282044887543"
+        },
+        "38": {
+            "input": "uniform",
+            "output": "0.22657637298107147"
+        },
+        "39": {
+            "input": "projector",
+            "output": "0.23529908061027527"
+        },
+        "40": {
+            "input": "shirt",
+            "output": "0.23494695127010345"
+        },
+        "41": {
+            "input": "stone",
+            "output": "0.3165225684642792"
+        },
+        "42": {
+            "input": "shelf",
+            "output": "0.1731996089220047"
+        },
+        "43": {
+            "input": "sofa",
+            "output": "0.2417823076248169"
+        },
+        "44": {
+            "input": "crossfire",
+            "output": "0.16593028604984283"
+        },
+        "45": {
+            "input": "trekker",
+            "output": "0.14996661245822906"
+        },
+        "46": {
+            "input": "smelter",
+            "output": "0.1991841048002243"
+        },
+        "47": {
+            "input": "scouts",
+            "output": "0.13768289983272552"
+        },
+        "48": {
+            "input": "liter",
+            "output": "0.117205910384655"
+        },
+        "49": {
+            "input": "court",
+            "output": "0.15169551968574524"
+        },
+        "50": {
+            "input": "canister",
+            "output": "0.16820593178272247"
+        },
+        "51": {
+            "input": "stop",
+            "output": "0.04895763844251633"
+        },
+        "52": {
+            "input": "seamstress",
+            "output": "0.30991923809051514"
+        },
+        "53": {
+            "input": "groomer",
+            "output": "0.20610277354717255"
+        },
+        "54": {
+            "input": "waitperson",
+            "output": "0.2707958519458771"
+        },
+        "55": {
+            "input": "stake",
+            "output": "0.16251780092716217"
+        },
+        "56": {
+            "input": "gallery",
+            "output": "0.2021537870168686"
+        },
+        "57": {
+            "input": "snapshot",
+            "output": "0.2466021329164505"
+        },
+        "58": {
+            "input": "accomplice",
+            "output": "0.20858190953731537"
+        },
+        "59": {
+            "input": "rifleman",
+            "output": "0.26779764890670776"
+        },
+        "60": {
+            "input": "juicer",
+            "output": "0.19476822018623352"
+        },
+        "61": {
+            "input": "highlighter",
+            "output": "0.42295098304748535"
+        },
+        "62": {
+            "input": "haircut",
+            "output": "0.25461456179618835"
+        },
+        "63": {
+            "input": "cadaver",
+            "output": "0.11852949112653732"
+        },
+        "64": {
+            "input": "wonder",
+            "output": "0.18589478731155396"
+        },
+        "65": {
+            "input": "birthmark",
+            "output": "0.37021586298942566"
+        },
+        "66": {
+            "input": "fingernail",
+            "output": "0.30594226717948914"
+        },
+        "67": {
+            "input": "mug",
+            "output": "0.22337163984775543"
+        },
+        "68": {
+            "input": "anchorage",
+            "output": "0.19629965722560883"
+        },
+        "69": {
+            "input": "cytoplasm",
+            "output": "0.1201879009604454"
+        },
+        "70": {
+            "input": "bonnet",
+            "output": "0.22198596596717834"
+        },
+        "71": {
+            "input": "sanctuary",
+            "output": "0.19851981103420258"
+        },
+        "72": {
+            "input": "scrubber",
+            "output": "0.17486758530139923"
+        },
+        "73": {
+            "input": "room",
+            "output": "0.13495205342769623"
+        },
+        "74": {
+            "input": "heat",
+            "output": "0.0874427855014801"
+        },
+        "75": {
+            "input": "animated",
+            "output": "0.14174610376358032"
+        },
+        "76": {
+            "input": "puma",
+            "output": "0.20384012162685394"
+        },
+        "77": {
+            "input": "cider",
+            "output": "0.17861349880695343"
+        },
+        "78": {
+            "input": "cashew",
+            "output": "0.22724516689777374"
+        },
+        "79": {
+            "input": "pulley",
+            "output": "0.13875742256641388"
+        },
+        "80": {
+            "input": "phone",
+            "output": "0.21400977671146393"
+        },
+        "81": {
+            "input": "laptop",
+            "output": "0.22531189024448395"
+        },
+        "82": {
+            "input": "beads",
+            "output": "0.40922847390174866"
+        },
+        "83": {
+            "input": "fungi",
+            "output": "0.20049352943897247"
+        },
+        "84": {
+            "input": "dope",
+            "output": "0.10514961928129196"
+        },
+        "85": {
+            "input": "nitrite",
+            "output": "0.14961497485637665"
+        },
+        "86": {
+            "input": "cannibal",
+            "output": "0.07442018389701843"
+        },
+        "87": {
+            "input": "kerchief",
+            "output": "0.2699306607246399"
+        },
+        "88": {
+            "input": "suckerfish",
+            "output": "0.18499350547790527"
+        },
+        "89": {
+            "input": "gent",
+            "output": "0.1548994481563568"
+        },
+        "90": {
+            "input": "expo",
+            "output": "0.20066043734550476"
+        },
+        "91": {
+            "input": "marcher",
+            "output": "0.09698563069105148"
+        },
+        "92": {
+            "input": "class",
+            "output": "0.21135213971138"
+        },
+        "93": {
+            "input": "scope",
+            "output": "0.14083397388458252"
+        },
+        "94": {
+            "input": "raincoat",
+            "output": "0.12513603270053864"
+        },
+        "95": {
+            "input": "wheel",
+            "output": "0.13998116552829742"
+        },
+        "96": {
+            "input": "streamliner",
+            "output": "0.14355671405792236"
+        },
+        "97": {
+            "input": "think",
+            "output": "0.1626509726047516"
+        },
+        "98": {
+            "input": "false",
+            "output": "0.18816326558589935"
+        },
+        "99": {
+            "input": "cinder",
+            "output": "0.20622624456882477"
+        }
+    }
+}

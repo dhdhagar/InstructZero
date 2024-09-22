@@ -5,13 +5,14 @@ from evaluation.instruction_induction.exec_accuracy import exec_accuracy_evaluat
 import os
 
 TASKS=[
-    'antonyms', 'cause_and_effect', 'common_concept', 'diff', 'first_word_letter',
+    'antonyms', 'birthstone', 'cause_and_effect', 'common_concept', 'diff', 'first_word_letter',
     'informal_to_formal', 'larger_animal', 'letters_list', 'taxonomy_animal', 'negation', 
     'num_to_verbal', 'active_to_passive', 'singular_to_plural', 'rhymes',
     'second_word_letter', 'sentence_similarity', 'sentiment', 'orthography_starts_with',
     'sum', 'synonyms', 'translation_en-de', 'translation_en-es',
     'translation_en-fr', 'word_in_context', 'auto_categorization', 'auto_debugging', 'ascii', 'cs_algorithms',
-    'periodic_elements', 'word_sorting', 'word_unscrambling', 'odd_one_out', 'object_count'
+    'periodic_elements', 'word_sorting', 'word_unscrambling', 'odd_one_out', 'object_count',
+    'cement', 'child', 'computer', 'crane', 'meatloaf', 'papa', 'polyethylene', 'sax', 'trees'
 ]
 
 

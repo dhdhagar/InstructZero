@@ -1,4 +1,4 @@
-file_name = "logfile_wizardlm-vector-similarity-kernel.log"
+file_name = "logfile_20240922_072922.log"
 
 with open(file_name, "r") as ff:
     lines = ff.readlines()
