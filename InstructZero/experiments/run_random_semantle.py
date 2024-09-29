@@ -228,7 +228,10 @@ class LMForwardAPI:
         inputs = self.tokenizer(
             input_text, return_tensors="pt", padding=True, truncation=True
         )
-        prefix = self.tokenizer("<|begin_of_text|><|start_header_id|>user<|end_header_id|>", return_tensors="pt")
+        prefix = self.tokenizer(
+            "<|begin_of_text|><|start_header_id|>user<|end_header_id|>",
+            return_tensors="pt",
+        )
         prefix_emb = self.embedding[prefix.input_ids]
         prompt_embedding = torch.cat((prefix_emb, prompt_embedding.cuda()), 1)
 
@@ -329,161 +332,27 @@ def run(args):
     )
 
     # start bayesian optc
-    # sampling N_INIT * (N_ITERATIONS + 1) points to keep the initial points fixed same as random sementle experiment
-    X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=0).draw(N_INIT * (N_ITERATIONS + 1))
-    X = X[:N_INIT]
-    X_return = [
-        model_forward_api.eval(similarity_model, x, args.semantle_word) for x in X
+    itr = 0
+    X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=0).draw(
+        N_INIT * (N_ITERATIONS + 1)
+    )
+    _ = [
+        model_forward_api.eval(similarity_model, x, args.semantle_word)
+        for x in X[itr : (itr + N_INIT)]
     ]
-    x_vec = [x[2] for x in X_return]
-    x_text = [x[3] for x in X_return]
-    Y = [X[0] for X in X_return]
-    Y_scores = [X[1][0] for X in X_return]
+    itr += N_INIT
 
-    X = X.to(**tkwargs)
-    Y = torch.FloatTensor(Y).unsqueeze(-1).to(**tkwargs)
-    Y_scores = torch.FloatTensor(np.array(Y_scores)).to(**tkwargs)
-    logging.info(f"Best initial point: {Y.max().item():.3f}")
-
-    # standardization Y (no standardization for X)
-    X_train = X
-    y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
-    x_vec = torch.nn.utils.rnn.pad_sequence(
-        [x.squeeze(0) for x in x_vec], batch_first=True, padding_value=0
-    ).to(dtype=torch.float64)
-
-    # define matern kernel
-    matern_kernel = MaternKernel(
-        nu=2.5,
-        ard_num_dims=X_train.shape[-1],
-        lengthscale_prior=GammaPrior(3.0, 6.0),
-    )
-    if args.instruct_method == "default":
-        matern_kernel_instruction = MaternKernel(
-            nu=2.5,
-            ard_num_dims=Y_scores.shape[-1],
-            lengthscale_prior=GammaPrior(3.0, 6.0),
-        )
-        vector_train = None
-    elif args.instruct_method == "vec_sim":
-        matern_kernel_instruction = VectorSimilarityKernel()
-        vector_train = x_vec
-    elif args.instruct_method == "txt_sim":
-        matern_kernel_instruction = TextSimilarityKernel(similarity_model)
-        vector_train = x_text
-
-    covar_module = ScaleKernel(
-        base_kernel=CombinedStringKernel(
-            base_latent_kernel=matern_kernel,
-            instruction_kernel=matern_kernel_instruction,
-            latent_train=X_train.double(),
-            instruction_train=Y_scores,
-            vector_train=vector_train,  # Shape: (num_points, num_features)
-        )
-    )
-
-    # covar_module = ScaleKernel(VectorSimilarityKernel())
-    gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
-    gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
     for i in range(N_ITERATIONS):  # 5 iterations, 25 batch size.
-        logging.info(f"X_train shape {X_train.shape}")
 
-        start_time = time.time()
+        for idx in range(N_INIT):
+            X_next_point = X[idx + itr]
 
-        fit_gpytorch_model(gp_mll)  # , options = {'maxiter':10})
-        logging.info(f"Fitting done in {time.time()-start_time}")
-        start_time = time.time()
-        EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
-        starting_idxs = torch.argsort(-1 * y_train.squeeze())[:BATCH_SIZE]
-        print(starting_idxs)
-        starting_points = X_train[starting_idxs]
-        print("Starting points shape:", starting_points.shape)
-        best_points = []
-        best_vals = []
-        for starting_point_for_cma in starting_points:
-            if (
-                torch.max(starting_point_for_cma) > 1
-                or torch.min(starting_point_for_cma) < -1
-            ):
-                continue
-            newp, newv = cma_es_concat(starting_point_for_cma, EI, tkwargs)
-            # newp, newv = adam_optimizer(starting_point_for_cma, EI, tkwargs)
-            best_points.append(newp)
-            best_vals.append(newv)
-        print(best_vals)
-        print(best_points)
-        logging.info(
-            f"best point {best_points[np.argmax(best_vals)]} \n with EI value {np.max(best_vals)}"
-        )
-        logging.info(f"Time for CMA-ES {time.time() - start_time}")
-        for idx in np.argsort(-1 * np.array(best_vals)):
-            X_next_point = torch.from_numpy(best_points[idx]).float().unsqueeze(0)
-
-            X_next_points_return = [
+            _ = [
                 model_forward_api.eval(
                     similarity_model, X_next_point, args.semantle_word
                 )
             ]
-            Y_next_point = [X[0] for X in X_next_points_return]
-            Y_scores_next_points = [X[1][0] for X in X_next_points_return]
-            x_vec_next_point = [x[2] for x in X_next_points_return]
-            x_text_next_point = [x[3] for x in X_next_points_return]
-
-            x_vec = torch.nn.utils.rnn.pad_sequence(
-                [x.squeeze(0) for x in x_vec]
-                + [x.squeeze(0) for x in x_vec_next_point],
-                batch_first=True,
-                padding_value=0,
-            ).to(dtype=torch.float64)
-
-            X_next_point = X_next_point.to(**tkwargs)
-            Y_next_point = torch.FloatTensor(Y_next_point).unsqueeze(-1).to(**tkwargs)
-            Y_scores_next_points = torch.FloatTensor(np.array(Y_scores_next_points)).to(
-                **tkwargs
-            )
-            x_text = x_text + x_text_next_point
-
-            X = torch.cat([X, X_next_point])
-            Y = torch.cat([Y, Y_next_point])
-            Y_scores = torch.cat([Y_scores, Y_scores_next_points])
-
-        # standardization Y
-        X_train = X.clone()
-        y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
-
-        matern_kernel = MaternKernel(
-            nu=2.5,
-            ard_num_dims=X_train.shape[-1],
-            lengthscale_prior=GammaPrior(3.0, 6.0),
-        )
-
-        if args.instruct_method == "default":
-            matern_kernel_instruction = MaternKernel(
-                nu=2.5,
-                ard_num_dims=Y_scores.shape[-1],
-                lengthscale_prior=GammaPrior(3.0, 6.0),
-            )
-            vector_train = None
-        elif args.instruct_method == "vec_sim":
-            matern_kernel_instruction = VectorSimilarityKernel()
-            vector_train = x_vec
-        elif args.instruct_method == "txt_sim":
-            matern_kernel_instruction = TextSimilarityKernel(similarity_model)
-            vector_train = x_text
-
-        covar_module = ScaleKernel(
-            base_kernel=CombinedStringKernel(
-                base_latent_kernel=matern_kernel,
-                # instruction_kernel=TextSimilarityKernel(similarity_model),
-                instruction_kernel=matern_kernel_instruction,
-                latent_train=X_train.double(),
-                instruction_train=Y_scores,
-                vector_train=vector_train,  # Shape: (num_points, num_features)
-            )
-        )
-        gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
-        gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
-        logging.info(f"Best value found till now: {torch.max(Y)}")
+        itr += N_INIT
 
     logging.info("Evaluate on test data...")
     prompts = model_forward_api.return_best_prompt()
@@ -507,7 +376,7 @@ if __name__ == "__main__":
 
     # Get the current timestamp and format it
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"semantle_{args.task}_{args.instruct_method}.log"
+    log_filename = f"random_semantle_{args.task}_{args.instruct_method}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
