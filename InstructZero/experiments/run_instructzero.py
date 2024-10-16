@@ -34,6 +34,7 @@ class LMForwardAPI:
                  HF_cache_dir=None, args=None):
         p = torch.ones(10)
         
+        self.args = args 
         kwargs={
             'torch_dtype': torch.float16,
             'use_cache': True
@@ -124,7 +125,7 @@ class LMForwardAPI:
         self.best_instruction = None
         self.prompts_set = dict()
 
-    def eval(self, prompt_embedding=None, test_data=None, no_prompt=False):
+    def eval(self, prompt_embedding=None, test_data=None):
         self.num_call += 1
         if prompt_embedding is None:
             prompt_embedding = self.best_prompt
@@ -155,9 +156,14 @@ class LMForwardAPI:
         input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         input_embed = self.embedding[input_ids]
         prompt_embedding = prompt_embedding.to(device=input_embed.device, dtype=input_embed.dtype)
-        if not no_prompt:
+        if not self.args.no_prompt:
             input_embed = torch.cat((prompt_embedding, input_embed), 1)
             decoding_kwargs = {}
+            if self.args.do_sample:
+                decoding_kwargs = {
+                    "do_sample": True,
+                    "temperature": 1.0,
+                }
         else:
             decoding_kwargs = {
                 "do_sample": True,
@@ -220,6 +226,9 @@ class LMForwardAPI:
 
     def return_best_prompt(self):
         return self.best_instruction
+    
+    def return_best_dev_perf(self):
+        return self.best_dev_perf
 
     def return_prompts_set(self):
         return self.prompts_set
@@ -253,6 +262,9 @@ def run(args):
 
     base_conf = '../configs/instruction_induction.yaml'
     conf = get_conf(task, eval_data)
+    
+    if args.bbox_model is not None:
+        conf['evaluation']['model']['gpt_config']['model'] = args.bbox_model
 
     # make the demo automatically
     subsampled_data = data.subsample_data(prompt_gen_data, conf['generation']['num_demos'])
@@ -267,7 +279,7 @@ def run(args):
         
     # start bayesian opt
     X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=0).draw(N_INIT)
-    X_return = [model_forward_api.eval(x, no_prompt=args.no_prompt) for x in X]
+    X_return = [model_forward_api.eval(x) for x in X]
     Y = [X[0] for X in X_return]
     Y_scores = [X[1].squeeze() for X in X_return]
     bbox_evals = [X[2] for X in X_return]
@@ -328,7 +340,7 @@ def run(args):
             X_next_point =  torch.from_numpy(best_points[idx]).float().unsqueeze(0)
             # Y_next_point = [model_forward_api.eval(X_next_point)]
             
-            X_next_points_return = [model_forward_api.eval(X_next_point, no_prompt=args.no_prompt)]
+            X_next_points_return = [model_forward_api.eval(X_next_point)]
             Y_next_point = [X[0] for X in X_next_points_return]
             Y_scores_next_points = [X[1].squeeze() for X in X_next_points_return]
             bbox_evals_next_points = [X[2] for X in X_next_points_return]
@@ -363,17 +375,23 @@ def run(args):
 
     print('Evaluate on test data...')
     prompts = model_forward_api.return_best_prompt()
+    best_dev_perf = round(float(model_forward_api.return_best_dev_perf()), 4)
+    prompts_set = model_forward_api.return_prompts_set()
     print("Best instruction is:")
     print(prompts)
+    print(f'(dev perf={best_dev_perf})')
 
     print("The final instruction set is:")
-    print(model_forward_api.return_prompts_set())
+    print(prompts_set)
 
     # Evaluate on test data
     print('Evaluating on test data...')
 
     test_conf = get_test_conf(task, test_data)
     
+    if args.bbox_model is not None:
+        test_conf['evaluation']['model']['gpt_config']['model'] = args.bbox_model
+
     test_res = ape.evaluate_prompts(prompts=prompts,
                                     eval_template=eval_template,
                                     eval_data=test_data,
@@ -383,7 +401,7 @@ def run(args):
                                     base_conf=base_conf)
     test_res = test_res[0]
     test_score = test_res.sorted()[1][0]
-    return test_score, prompts, bbox_evals
+    return test_score, best_dev_perf, prompts, prompts_set, bbox_evals
     # print(f'Test score on ChatGPT: {test_score}')
 
 
@@ -392,14 +410,16 @@ if __name__ == '__main__':
     # evaluation budget
     print(f"Using a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
     print(set_all_seed(args.seed))
-    test_score, best_instruction, bbox_evals = run(args=args)
+    test_score, dev_score, best_instruction, instructions, bbox_evals = run(args=args)
     print("Finished!!!")
     print(f'Test score on ChatGPT: {test_score}')
 
     results = {
         "args": args.__dict__,
         "test_score": test_score,
+        "dev_score": dev_score,
         "best_instruction": best_instruction,
+        "instructions": instructions,
         "bbox_evals": bbox_evals
     }
 

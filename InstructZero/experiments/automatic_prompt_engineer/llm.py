@@ -276,6 +276,7 @@ class GPT_Forward(LLM):
         self.config = config
         self.needs_confirmation = needs_confirmation
         self.disable_tqdm = disable_tqdm
+        self.model_name = self.config['gpt_config']['model'] # gpt-3.5-turbo
 
     def confirm_cost(self, texts, n, max_tokens):
         total_estimated_cost = 0
@@ -378,7 +379,7 @@ class GPT_Forward(LLM):
             while response is None:
                 try:
                     response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
+                        model=self.model_name,
                         messages=[{"role": "user", "content": prompt_single}],
                         temperature=0.0,
                         max_tokens=256,
@@ -407,7 +408,7 @@ class GPT_Forward(LLM):
             try:
                 predictions = asyncio.run(dispatch_openai_requests(
                     messages_list = ml,
-                    model='gpt-3.5-turbo',
+                    model=self.model_name,
                     temperature=0,
                     max_tokens=256,
                     frequency_penalty=0,

@@ -71,5 +71,11 @@ def parse_args():
     parser.add_argument(
         "--no_prompt", action=argparse.BooleanOptionalAction, default=False
     )
+    parser.add_argument(
+        "--do_sample", action=argparse.BooleanOptionalAction, default=False
+    )
+    parser.add_argument(
+        "--bbox_model", type=str, default='gpt-3.5-turbo'
+    )
     args = parser.parse_args()
     return args

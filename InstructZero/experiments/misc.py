@@ -47,7 +47,7 @@ def get_test_conf(task, test_data):
                     'model': {
                         "name": "GPT_forward",
                         'gpt_config': {
-                            'model': 'GPT-3.5-turbo',
+                            'model': 'gpt-3.5-turbo', # gpt-3.5-turbo
                         }
                     }
                 }
@@ -72,8 +72,9 @@ def get_conf(task, eval_data):
             'task': task,
             'num_samples': min(20, len(eval_data[0])),
             'model': {
+                "name": "GPT_forward",
                 'gpt_config': {
-                    # 'model': 'text-ada-001'
+                    'model': 'gpt-3.5-turbo'
                 }
             }
         }
