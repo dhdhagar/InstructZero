@@ -23,7 +23,7 @@ tkwargs = {
 }
 
 
-N_INIT = 25
+N_INIT = 25 if not SMOKE_TEST else 5
 N_ITERATIONS = 5 if not SMOKE_TEST else 1
 BATCH_SIZE = 25 if not SMOKE_TEST else 1
 

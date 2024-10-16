@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from automatic_prompt_engineer import evaluate, config, template, data
 import os
 import re
+import json
 from misc import get_test_conf, get_conf
 
 from torch.quasirandom import SobolEngine
@@ -180,9 +181,10 @@ class LMForwardAPI:
         
         if instruction[0] in self.prompts_set.keys():
             (dev_perf, instruction_score) = self.prompts_set[instruction[0]]
+            model_outputs = ['cache']
         else:
             if self.api_model in ['chatgpt']: 
-                dev_perf, instruction_score = evaluate.evaluate_prompts(instruction, self.eval_template, self.eval_data, self.demos_template, self.few_shot_data, self.conf['evaluation']['method'], self.conf['evaluation'])
+                dev_perf, instruction_score, model_outputs = evaluate.evaluate_prompts(instruction, self.eval_template, self.eval_data, self.demos_template, self.few_shot_data, self.conf['evaluation']['method'], self.conf['evaluation'])
                 dev_perf = dev_perf.sorted()[1][0]
                 self.prompts_set[instruction[0]] = (dev_perf, instruction_score)
             # We will fix the bugs for other api models. Stay tuned!
@@ -207,7 +209,7 @@ class LMForwardAPI:
             round(float(self.best_dev_perf), 4)))
         print('********* Done *********')
 
-        return dev_perf, instruction_score
+        return dev_perf, instruction_score, model_outputs
 
     def return_best_prompt(self):
         return self.best_instruction
@@ -225,7 +227,7 @@ def run(args):
 
     # Get size of the induce data
     induce_data_size = len(induce_data[0])
-    prompt_gen_size = min(int(induce_data_size), 100)
+    prompt_gen_size = min(int(induce_data_size) - 5, 100)
     # Induce data is split into prompt_gen_data and eval_data
     prompt_gen_data, eval_data = data.create_split(
         induce_data, prompt_gen_size)
@@ -261,7 +263,9 @@ def run(args):
     X_return = [model_forward_api.eval(x) for x in X]
     Y = [X[0] for X in X_return]
     Y_scores = [X[1].squeeze() for X in X_return]
-    
+    bbox_evals = [X[2] for X in X_return]
+
+
     X = X.to(**tkwargs)
     Y = torch.FloatTensor(Y).unsqueeze(-1).to(**tkwargs)
     Y_scores = torch.FloatTensor(np.array(Y_scores)).to(**tkwargs)
@@ -320,7 +324,8 @@ def run(args):
             X_next_points_return = [model_forward_api.eval(X_next_point)]
             Y_next_point = [X[0] for X in X_next_points_return]
             Y_scores_next_points = [X[1].squeeze() for X in X_next_points_return]
-    
+            bbox_evals_next_points = [X[2] for X in X_next_points_return]
+
             X_next_point = X_next_point.to(**tkwargs)
             Y_next_point = torch.FloatTensor(Y_next_point).unsqueeze(-1).to(**tkwargs)
             Y_scores_next_points = torch.FloatTensor(np.array(Y_scores_next_points)).to(**tkwargs)
@@ -328,6 +333,7 @@ def run(args):
             X = torch.cat([X, X_next_point])
             Y = torch.cat([Y, Y_next_point])
             Y_scores = torch.cat([Y_scores, Y_scores_next_points])
+            bbox_evals += bbox_evals_next_points
 
         # standardization Y
         X_train = X.clone()
@@ -370,7 +376,7 @@ def run(args):
                                     base_conf=base_conf)
     test_res = test_res[0]
     test_score = test_res.sorted()[1][0]
-    return test_score
+    return test_score, prompts, bbox_evals
     # print(f'Test score on ChatGPT: {test_score}')
 
 
@@ -379,6 +385,16 @@ if __name__ == '__main__':
     # evaluation budget
     print(f"Using a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
     print(set_all_seed(args.seed))
-    test_score = run(args=args)
+    test_score, best_instruction, bbox_evals = run(args=args)
     print("Finished!!!")
     print(f'Test score on ChatGPT: {test_score}')
+
+    results = {
+        "args": args.__dict__,
+        "test_score": test_score,
+        "best_instruction": best_instruction,
+        "bbox_evals": bbox_evals
+    }
+
+    with open(f"{args.out_file}_{args.task}.json", 'w') as fh:
+        fh.write(json.dumps(results, indent=2))

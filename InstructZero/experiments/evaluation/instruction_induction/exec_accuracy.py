@@ -65,7 +65,7 @@ def exec_accuracy_evaluator(prompts, eval_template, eval_data, demos_template, f
     scores = np.array(scores).reshape(len(prompts), config['num_samples'])
 
     res = ExecAccuracyEvaluationResult(prompts, scores)
-    return res, scores
+    return res, scores, list(zip(queries, model_outputs))
 
 
 

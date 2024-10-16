@@ -62,5 +62,11 @@ def parse_args():
         default='vicuna',
         help="The model name of the open-source LLM."    
     )
+    parser.add_argument(
+        "--out_file",
+        type=str,
+        default='results',
+        help="The output results file name"
+    )
     args = parser.parse_args()
     return args
