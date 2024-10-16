@@ -124,7 +124,7 @@ class LMForwardAPI:
         self.best_instruction = None
         self.prompts_set = dict()
 
-    def eval(self, prompt_embedding=None, test_data=None):
+    def eval(self, prompt_embedding=None, test_data=None, no_prompt=False):
         self.num_call += 1
         if prompt_embedding is None:
             prompt_embedding = self.best_prompt
@@ -155,9 +155,16 @@ class LMForwardAPI:
         input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         input_embed = self.embedding[input_ids]
         prompt_embedding = prompt_embedding.to(device=input_embed.device, dtype=input_embed.dtype)
-        input_embed = torch.cat((prompt_embedding, input_embed), 1)
+        if not no_prompt:
+            input_embed = torch.cat((prompt_embedding, input_embed), 1)
+            decoding_kwargs = {}
+        else:
+            decoding_kwargs = {
+                "do_sample": True,
+                "temperature": 1.0,
+            }
 
-        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=128)
+        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=128, **decoding_kwargs)
         instruction = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # postprocess instruction
         # instruction[0] = 'The instruction was to ' + instruction[0]
@@ -260,7 +267,7 @@ def run(args):
         
     # start bayesian opt
     X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=0).draw(N_INIT)
-    X_return = [model_forward_api.eval(x) for x in X]
+    X_return = [model_forward_api.eval(x, no_prompt=args.no_prompt) for x in X]
     Y = [X[0] for X in X_return]
     Y_scores = [X[1].squeeze() for X in X_return]
     bbox_evals = [X[2] for X in X_return]
@@ -321,7 +328,7 @@ def run(args):
             X_next_point =  torch.from_numpy(best_points[idx]).float().unsqueeze(0)
             # Y_next_point = [model_forward_api.eval(X_next_point)]
             
-            X_next_points_return = [model_forward_api.eval(X_next_point)]
+            X_next_points_return = [model_forward_api.eval(X_next_point, no_prompt=args.no_prompt)]
             Y_next_point = [X[0] for X in X_next_points_return]
             Y_scores_next_points = [X[1].squeeze() for X in X_next_points_return]
             bbox_evals_next_points = [X[2] for X in X_next_points_return]
