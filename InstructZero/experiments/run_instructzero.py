@@ -403,11 +403,13 @@ def run(args):
 
 if __name__ == '__main__':
     args = parse_args()
+    print("Script arguments:")
+    print(args.__dict__)
     # evaluation budget
-    print(f"Using a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
+    print(f"\nUsing a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
     print(set_all_seed(args.seed))
     test_score, dev_score, best_instruction, instructions, bbox_evals = run(args=args)
-    print("Finished!!!")
+    print("\nFinished!!!")
     print(f'Test score on ChatGPT: {test_score}')
 
     results = {

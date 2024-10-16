@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 for i in ${datasets[@]}; do
-    echo $i
+    echo "### STARTING RUN FOR $i ###"
     python InstructZero/experiments/run_instructzero.py \
     --task $i \
     --random_proj ${RANDOM_PROJ} \
