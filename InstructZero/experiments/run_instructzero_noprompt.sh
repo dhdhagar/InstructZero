@@ -12,7 +12,8 @@ export TRANSFORMERS_CACHE=./transformers_cache
 datasets=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 # datasets=(word_sorting)
 
-OUT_FILE='results-noprompt'
+OUT_FILE='noprompt'
+BBOX_MODEL='gpt-4-turbo'
 
 for i in ${datasets[@]}; do
     echo $i
@@ -23,5 +24,7 @@ for i in ${datasets[@]}; do
     --intrinsic_dim $INTRINSIC_DIM \
     --HF_cache_dir ${model_dir} \
     --model_name ${MODEL_NAME} \
-    --no_prompt --out_file ${OUT_FILE}
+    --bbox_model ${BBOX_MODEL} \
+    --no_prompt \
+    --out_file ${OUT_FILE}
 done

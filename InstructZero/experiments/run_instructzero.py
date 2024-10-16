@@ -156,20 +156,15 @@ class LMForwardAPI:
         input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         input_embed = self.embedding[input_ids]
         prompt_embedding = prompt_embedding.to(device=input_embed.device, dtype=input_embed.dtype)
+        decoding_kwargs = {}
         if not self.args.no_prompt:
             input_embed = torch.cat((prompt_embedding, input_embed), 1)
-            decoding_kwargs = {}
-            if self.args.do_sample:
-                decoding_kwargs = {
-                    "do_sample": True,
-                    "temperature": 1.0,
-                }
-        else:
+        if self.args.do_sample:
             decoding_kwargs = {
                 "do_sample": True,
                 "temperature": 1.0,
+                "top_p": 0.9
             }
-
         outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=128, **decoding_kwargs)
         instruction = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # postprocess instruction
@@ -377,6 +372,7 @@ def run(args):
     prompts = model_forward_api.return_best_prompt()
     best_dev_perf = round(float(model_forward_api.return_best_dev_perf()), 4)
     prompts_set = model_forward_api.return_prompts_set()
+    prompts_set = {k: round(float(v[0]), 4) for k,v in prompts_set.items()}
     print("Best instruction is:")
     print(prompts)
     print(f'(dev perf={best_dev_perf})')
@@ -423,5 +419,8 @@ if __name__ == '__main__':
         "bbox_evals": bbox_evals
     }
 
-    with open(f"{args.out_file}_{args.task}.json", 'w') as fh:
+    os.makedirs('results', exist_ok=True)
+    res_fpath = f"results/{args.out_file+'_' if args.out_file is not None else ''}{args.bbox_model}_{args.task}.json"
+    with open(res_fpath, 'w') as fh:
         fh.write(json.dumps(results, indent=2))
+    print(f"Saved results to: {res_fpath}\n\n")

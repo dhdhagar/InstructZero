@@ -65,8 +65,7 @@ def parse_args():
     parser.add_argument(
         "--out_file",
         type=str,
-        default='results',
-        help="The output results file name"
+        help="The output results filename prefix"
     )
     parser.add_argument(
         "--no_prompt", action=argparse.BooleanOptionalAction, default=False
