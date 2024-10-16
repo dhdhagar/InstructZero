@@ -11,7 +11,17 @@ export TRANSFORMERS_CACHE=./transformers_cache
 
 datasets=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
-BBOX_MODEL='gpt-4-turbo'
+BBOX_MODEL='gpt-3.5-turbo'
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        # Script arguments
+        --bbox_model) BBOX_MODEL="$2"; shift ;;
+        *) echo "Invalid option: $1" >&2; exit 1 ;;
+    esac
+    shift
+done
 
 for i in ${datasets[@]}; do
     echo $i
