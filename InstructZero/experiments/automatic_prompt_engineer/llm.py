@@ -46,7 +46,8 @@ async def dispatch_openai_requests(
             temperature=temperature,
             max_tokens=max_tokens,
             frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty) for x in messages_list]
+            presence_penalty=presence_penalty,
+            seed=0) for x in messages_list]
 
     return await asyncio.gather(*async_responses)
 
@@ -384,7 +385,8 @@ class GPT_Forward(LLM):
                         temperature=0.0,
                         max_tokens=256,
                         frequency_penalty=0,
-                        presence_penalty=0)
+                        presence_penalty=0,
+                        seed=0)
 
                 except Exception as e:
                     if 'is greater than the maximum' in str(e):
@@ -412,8 +414,7 @@ class GPT_Forward(LLM):
                     temperature=0,
                     max_tokens=256,
                     frequency_penalty=0,
-                    presence_penalty=0
-                    )
+                    presence_penalty=0)
                 )
             except Exception as e:
                 # if 'is greater than the maximum' in str(e):
@@ -452,7 +453,7 @@ class GPT_Forward(LLM):
         while response is None:
             try:
                 response = openai.Completion.create(
-                    **config, prompt=prompt)
+                    **config, seed=0, prompt=prompt)
             except Exception as e:
                 print(e)
                 print('Retrying...')
@@ -481,7 +482,7 @@ class GPT_Forward(LLM):
         while response is None:
             try:
                 response = openai.Completion.create(
-                    **config, prompt=text)
+                    **config, seed=0, prompt=text)
                 # import pdb;pdb.set_trace()
 
             except Exception as e:
@@ -644,7 +645,8 @@ class Claude_Forward(LLM):
                         temperature=0.0,
                         max_tokens=256,
                         frequency_penalty=0,
-                        presence_penalty=0)
+                        presence_penalty=0,
+                        seed=0)
 
                 except Exception as e:
                     if 'is greater than the maximum' in str(e):
@@ -672,8 +674,7 @@ class Claude_Forward(LLM):
                     temperature=0,
                     max_tokens=256,
                     frequency_penalty=0,
-                    presence_penalty=0
-                    )
+                    presence_penalty=0)
                 )
             except Exception as e:
                 # if 'is greater than the maximum' in str(e):
@@ -741,7 +742,7 @@ class Claude_Forward(LLM):
         while response is None:
             try:
                 response = openai.Completion.create(
-                    **config, prompt=text)
+                    **config, seed=0, prompt=text)
                 # import pdb;pdb.set_trace()
 
             except Exception as e:
@@ -854,7 +855,7 @@ class GPT_Insert(LLM):
         while response is None:
             try:
                 response = openai.ChatCompletion.create(
-                    **config, prompt=prefix, suffix=suffix)
+                    **config, seed=0, prompt=prefix, suffix=suffix)
             except Exception as e:
                 print(e)
                 print('Retrying...')

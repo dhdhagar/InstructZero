@@ -165,7 +165,7 @@ class LMForwardAPI:
                 "temperature": 1.0,
                 "top_p": 0.9
             }
-        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=128, **decoding_kwargs)
+        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=256, **decoding_kwargs)
         instruction = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # postprocess instruction
         # instruction[0] = 'The instruction was to ' + instruction[0]
@@ -273,7 +273,7 @@ def run(args):
                                     intrinsic_dim=intrinsic_dim, n_prompt_tokens=n_prompt_tokens, HF_cache_dir=HF_cache_dir, args=args)
         
     # start bayesian opt
-    X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=0).draw(N_INIT)
+    X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=args.seed).draw(N_INIT)
     X_return = [model_forward_api.eval(x) for x in X]
     Y = [X[0] for X in X_return]
     Y_scores = [X[1].squeeze() for X in X_return]
@@ -306,6 +306,10 @@ def run(args):
     gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
     
     for i in range(N_ITERATIONS):
+        if round(float(model_forward_api.return_best_dev_perf()), 4) >= 1.0:
+            print(f"\nTerminating early after {i} iterations: found best dev score of 1.0\n")
+            break
+
         print(f"X_train shape {X_train.shape}")
         print(f"y_train shape {y_train.shape}")
 
@@ -388,16 +392,17 @@ def run(args):
     if args.bbox_model is not None:
         test_conf['evaluation']['model']['gpt_config']['model'] = args.bbox_model
 
-    test_res = ape.evaluate_prompts(prompts=prompts,
+    _, test_scores, test_outputs = ape.evaluate_prompts(prompts=prompts,
                                     eval_template=eval_template,
                                     eval_data=test_data,
                                     few_shot_data=prompt_gen_data,
                                     demos_template=demos_template,
                                     conf=test_conf,
                                     base_conf=base_conf)
-    test_res = test_res[0]
-    test_score = test_res.sorted()[1][0]
-    return test_score, best_dev_perf, prompts, prompts_set, bbox_evals
+    # test_res = _test_res[0]
+    test_score = round(float(np.mean(test_scores)), 4)  # test_res.sorted()[1][0]
+    test_outputs_scores = list(zip(test_outputs, test_scores.squeeze().tolist()))
+    return test_score, test_outputs_scores, best_dev_perf, prompts, prompts_set, bbox_evals
     # print(f'Test score on ChatGPT: {test_score}')
 
 
@@ -408,7 +413,7 @@ if __name__ == '__main__':
     # evaluation budget
     print(f"\nUsing a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
     print(set_all_seed(args.seed))
-    test_score, dev_score, best_instruction, instructions, bbox_evals = run(args=args)
+    test_score, test_outputs, dev_score, best_instruction, instructions, bbox_evals = run(args=args)
     print("\nFinished!!!")
     print(f'Test score on ChatGPT: {test_score}')
 
@@ -417,12 +422,14 @@ if __name__ == '__main__':
         "test_score": test_score,
         "dev_score": dev_score,
         "best_instruction": best_instruction,
+        "test_outputs": test_outputs,
         "instructions": instructions,
         "bbox_evals": bbox_evals
     }
 
-    os.makedirs('results', exist_ok=True)
-    res_fpath = f"results/{args.out_file+'_' if args.out_file is not None else ''}{args.bbox_model}_{args.task}.json"
+    res_dirname = f"{args.out_file+'_' if args.out_file is not None else ''}{args.model_name}_{args.bbox_model}"
+    os.makedirs(f"results/{res_dirname}/{args.task}", exist_ok=True)
+    res_fpath = f"results/{res_dirname}/{args.task}/seed-{args.seed}.json"
     with open(res_fpath, 'w') as fh:
         fh.write(json.dumps(results, indent=2))
     print(f"Saved results to: {res_fpath}\n\n")
