@@ -1,3 +1,14 @@
+# Custom installation notes
+```bash
+conda create -n InstructZero python==3.9
+pip install protobuf==3.20.1
+pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+pip install botorch gpytorch
+pip install --upgrade cma
+```
+
+---
+
 # InstructZero: Efficient Instruction Optimization for Black-Box Large Language Models (ICML2024)
 
 Lichang Chen*, Jiuhai Chen*, Tom Goldstein, Heng Huang, Tianyi Zhou
