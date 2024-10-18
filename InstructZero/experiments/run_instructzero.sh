@@ -12,12 +12,14 @@ export TRANSFORMERS_CACHE=./transformers_cache
 datasets=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
 BBOX_MODEL='gpt-3.5-turbo'
+SEED=0
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         # Script arguments
         --bbox_model) BBOX_MODEL="$2"; shift ;;
+        --seed) SEED="$2"; shift ;;
         *) echo "Invalid option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -31,6 +33,7 @@ for i in ${datasets[@]}; do
     --n_prompt_tokens $SFT \
     --intrinsic_dim $INTRINSIC_DIM \
     --HF_cache_dir ${model_dir} \
+    --seed ${SEED} \
     --model_name ${MODEL_NAME} \
     --bbox_model ${BBOX_MODEL}
 done
