@@ -9,7 +9,7 @@ model_dir='WizardLMTeam/WizardLM-13B-V1.2'
 MODEL_NAME='wizardlm'
 export TRANSFORMERS_CACHE=./transformers_cache
 
-datasets=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
+DATASETS=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
 BBOX_MODEL='gpt-3.5-turbo'
 SEED=0
@@ -20,12 +20,13 @@ while [[ $# -gt 0 ]]; do
         # Script arguments
         --bbox_model) BBOX_MODEL="$2"; shift ;;
         --seed) SEED="$2"; shift ;;
+        --datasets) DATASETS="$2"; shift ;;
         *) echo "Invalid option: $1" >&2; exit 1 ;;
     esac
     shift
 done
 
-for i in ${datasets[@]}; do
+for i in ${DATASETS[@]}; do
     echo "### STARTING RUN FOR $i ###"
     python InstructZero/experiments/run_instructzero.py \
     --task $i \
