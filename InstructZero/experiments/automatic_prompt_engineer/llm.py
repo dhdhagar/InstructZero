@@ -10,7 +10,6 @@ import torch
 import asyncio
 from typing import Any
 
-
 gpt_costs_per_thousand = {
     'davinci': 0.0200,
     'curie': 0.0020,
@@ -20,12 +19,12 @@ gpt_costs_per_thousand = {
 
 
 async def dispatch_openai_requests(
-    messages_list: list[list[dict[str,Any]]],
-    model: str,
-    temperature: float,
-    max_tokens: int,
-    frequency_penalty: int,
-    presence_penalty: int
+        messages_list: list[list[dict[str, Any]]],
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        frequency_penalty: int,
+        presence_penalty: int
 ) -> list[str]:
     """Dispatches requests to OpenAI API asynchronously.
     
@@ -39,15 +38,15 @@ async def dispatch_openai_requests(
         List of responses from OpenAI API.
     """
     # for x in messages_list:
-        # try:
+    # try:
     async_responses = [openai.ChatCompletion.acreate(
-            model=model,
-            messages=x,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            seed=0) for x in messages_list]
+        model=model,
+        messages=x,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        frequency_penalty=frequency_penalty,
+        presence_penalty=presence_penalty,
+        seed=0) for x in messages_list]
 
     return await asyncio.gather(*async_responses)
 
@@ -89,19 +88,20 @@ class LLM(ABC):
         """
         pass
 
+
 class Llama_Forward(LLM):
     """Wrapper for llama."""
 
     def __init__(self, config, needs_confirmation=False, disable_tqdm=True):
         """Initializes the model."""
-        SIZE=13
+        SIZE = 13
         MODEL_DIR = '/data/bobchen/llama4trans/llama-{}b'.format(SIZE)
         TOKENIZER_DIR = '/data/bobchen/llama4trans/tokenizer'
         self.config = config
         self.needs_confirmation = needs_confirmation
         self.disable_tqdm = disable_tqdm
-        self.model=LlamaForCausalLM.from_pretrained(MODEL_DIR, device_map="auto")
-        self.tokenizer=LlamaTokenizer.from_pretrained(TOKENIZER_DIR)
+        self.model = LlamaForCausalLM.from_pretrained(MODEL_DIR, device_map="auto")
+        self.tokenizer = LlamaTokenizer.from_pretrained(TOKENIZER_DIR)
 
     def auto_reduce_n(self, fn, prompt, n):
         """Reduces n by half until the function succeeds."""
@@ -120,7 +120,9 @@ class Llama_Forward(LLM):
             input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.cuda()
             # Generate
             generate_ids = self.model.generate(input_ids, max_new_tokens=32)
-            text.append(self.tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
+            text.append(
+                self.tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[
+                    0])
         return text
 
     def complete(self, prompt, n):
@@ -132,7 +134,7 @@ class Llama_Forward(LLM):
                           for i in range(0, len(prompt), batch_size)]
         if not self.disable_tqdm:
             print(
-                f"[{self.config['name']}] Generating {len(prompt) * n} completions, " 
+                f"[{self.config['name']}] Generating {len(prompt) * n} completions, "
                 f"split into {len(prompt_batches)} batches of size {batch_size * n}")
         res = []
         for prompt_batch in tqdm(prompt_batches, disable=self.disable_tqdm):
@@ -174,12 +176,12 @@ class Flan_T5(LLM):
 
     def __init__(self, config, needs_confirmation=False, disable_tqdm=True):
         """Initializes the model."""
-        self.device="cuda:1"
+        self.device = "cuda:1"
         self.config = config
         self.needs_confirmation = needs_confirmation
         self.disable_tqdm = disable_tqdm
         self.model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-xxl",
-                                                    torch_dtype=torch.float16).to(device=self.device)
+                                                           torch_dtype=torch.float16).to(device=self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-xxl")
 
     def auto_reduce_n(self, fn, prompt, n):
@@ -201,14 +203,15 @@ class Flan_T5(LLM):
         #         f"[{self.config['name']}] Generating {len(prompt) * n} completions, "
         #         f"split into {len(prompt_batches)} batches of size {batch_size * n}")
         text = []
-        batch_size=10
+        batch_size = 10
         for i in range(len(prompts) // batch_size):
-            tmp_prompts = prompts[i*batch_size:(i+1)*batch_size]
-            input_ids = self.tokenizer(tmp_prompts, padding='longest', return_tensors="pt").input_ids.to(device=self.device)
+            tmp_prompts = prompts[i * batch_size:(i + 1) * batch_size]
+            input_ids = self.tokenizer(tmp_prompts, padding='longest', return_tensors="pt").input_ids.to(
+                device=self.device)
             outputs = self.model.generate(input_ids, max_new_tokens=32)
-            text += self.tokenizer.batch_decode(outputs, skip_special_tokens=True) 
-            
-        # batch_size = int(len(prompts)/2)
+            text += self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+            # batch_size = int(len(prompts)/2)
         # prompts1 = prompts[:batch_size]
         # prompts2 = prompts[batch_size:]
         # input_ids1 = self.tokenizer(prompts1, padding='longest', return_tensors="pt").input_ids.to(device=self.device)
@@ -266,9 +269,6 @@ class Flan_T5(LLM):
         return log_probs, tokens
 
 
-
-
-
 class GPT_Forward(LLM):
     """Wrapper for ChatGPT."""
 
@@ -277,7 +277,7 @@ class GPT_Forward(LLM):
         self.config = config
         self.needs_confirmation = needs_confirmation
         self.disable_tqdm = disable_tqdm
-        self.model_name = self.config['gpt_config']['model'] # gpt-3.5-turbo
+        self.model_name = self.config['gpt_config']['model']  # gpt-3.5-turbo
 
     def confirm_cost(self, texts, n, max_tokens):
         total_estimated_cost = 0
@@ -401,15 +401,16 @@ class GPT_Forward(LLM):
                     answer.append('do not have reponse from chatgpt')
 
         return answer
-    
+
     def __async_generate(self, prompt, n):
         ml = [[{"role": "user", "content": p.replace('[APE]', '').strip()}] for p in prompt]
         answer = None
 
-        while answer is None:
+        retry = 0
+        while answer is None and retry < 3:
             try:
                 predictions = asyncio.run(dispatch_openai_requests(
-                    messages_list = ml,
+                    messages_list=ml,
                     model=self.model_name,
                     temperature=0,
                     max_tokens=256,
@@ -421,15 +422,17 @@ class GPT_Forward(LLM):
                 #     raise BatchSizeException()
                 print(e)
                 print("Retrying....")
+                retry += 1
                 time.sleep(20)
-
             try:
                 answer = [x['choices'][0]['message']['content'] for x in predictions]
             except Exception:
                 print("Please Wait!")
-
+        if answer is None:
+            answer = [''] * len(prompt)
         return answer
         # try:          
+
     # reply = openai.ChatCompletion.create(
     #     model="gpt-3.5-turbo",
     #     messages=[{"role": "user", "content": input}],
@@ -438,7 +441,6 @@ class GPT_Forward(LLM):
     #     frequency_penalty=0,
     #     presence_penalty=0)
     # reply = reply['choices'][0]["message"]["content"].replace('\n\n', '')
-    
 
     def __complete(self, prompt, n):
         """Generates text from the model and returns the log prob data."""
@@ -640,7 +642,7 @@ class Claude_Forward(LLM):
             while response is None:
                 try:
                     response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
+                        model=self.model_name,  # "gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt_single}],
                         temperature=0.0,
                         max_tokens=256,
@@ -661,15 +663,16 @@ class Claude_Forward(LLM):
                     answer.append('do not have reponse from chatgpt')
 
         return answer
-    
+
     def __async_generate(self, prompt, n):
         ml = [[{"role": "user", "content": p.replace('[APE]', '').strip()}] for p in prompt]
         answer = None
 
-        while answer is None:
+        retry = 0
+        while answer is None and retry < 3:
             try:
                 predictions = asyncio.run(dispatch_openai_requests(
-                    messages_list = ml,
+                    messages_list=ml,
                     model='gpt-3.5-turbo',
                     temperature=0,
                     max_tokens=256,
@@ -681,15 +684,18 @@ class Claude_Forward(LLM):
                 #     raise BatchSizeException()
                 print(e)
                 print("Retrying....")
+                retry += 1
                 time.sleep(20)
 
             try:
                 answer = [x['choices'][0]['message']['content'] for x in predictions]
             except Exception:
                 print("Please Wait!")
-
+            if answer is None:
+                answer = [''] * len(prompt)
         return answer
         # try:          
+
     # reply = openai.ChatCompletion.create(
     #     model="gpt-3.5-turbo",
     #     messages=[{"role": "user", "content": input}],
@@ -698,7 +704,6 @@ class Claude_Forward(LLM):
     #     frequency_penalty=0,
     #     presence_penalty=0)
     # reply = reply['choices'][0]["message"]["content"].replace('\n\n', '')
-    
 
     def __complete(self, prompt, n):
         """Generates text from the model and returns the log prob data."""
@@ -790,10 +795,6 @@ class Claude_Forward(LLM):
         return lower_index, upper_index
 
 
-
-
-
-
 class GPT_Insert(LLM):
 
     def __init__(self, config, needs_confirmation=False, disable_tqdm=True):
@@ -863,8 +864,6 @@ class GPT_Insert(LLM):
         # Remove suffix from the generated text
         texts = [response['choices'][i]['text'].replace(suffix, '') for i in range(len(response['choices']))]
         return texts
-    
-    
 
 
 def gpt_get_estimated_cost(config, prompt, max_tokens):

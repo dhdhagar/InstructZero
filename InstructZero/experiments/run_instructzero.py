@@ -165,7 +165,7 @@ class LMForwardAPI:
                 "temperature": 1.0,
                 "top_p": 0.9
             }
-        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=256, **decoding_kwargs)
+        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=512, **decoding_kwargs)
         instruction = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # postprocess instruction
         # instruction[0] = 'The instruction was to ' + instruction[0]
