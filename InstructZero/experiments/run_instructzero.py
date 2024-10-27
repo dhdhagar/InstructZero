@@ -167,7 +167,7 @@ completes the request."""
         if self.args.do_sample:
             decoding_kwargs = {
                 "do_sample": True,
-                "temperature": 1.0,
+                "temperature": self.args.temperature,
                 "top_p": 0.9
             }
         outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=512, **decoding_kwargs)

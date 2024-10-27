@@ -12,7 +12,7 @@ export TRANSFORMERS_CACHE=./transformers_cache
 
 DATASETS=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
-OUT_FILE='noprompt-temp1'
+OUT_FILE='randprompt'
 
 BBOX_MODEL='gpt-3.5-turbo'
 SEED=0
@@ -48,7 +48,6 @@ for i in ${DATASETS[@]}; do
     --seed ${SEED} \
     --model_name ${MODEL_NAME} \
     --bbox_model ${BBOX_MODEL} \
-    --no_prompt \
-    --do_sample \
+    --random_prompt \
     --out_file ${OUT_FILE}
 done

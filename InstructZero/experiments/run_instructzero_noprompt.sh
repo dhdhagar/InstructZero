@@ -7,12 +7,14 @@ MODEL_NAME='vicuna'
 # model_dir='WizardLM/WizardLM-13B-V1.1'
 #model_dir='WizardLMTeam/WizardLM-13B-V1.2'
 #MODEL_NAME='wizardlm'
+
 export TRANSFORMERS_CACHE=./transformers_cache
 
 DATASETS=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
-OUT_FILE='temp1'
+OUT_FILE='noprompt-temp1'
 
+TEMPERATURE=1.0
 BBOX_MODEL='gpt-3.5-turbo'
 SEED=0
 
@@ -24,6 +26,7 @@ while [[ $# -gt 0 ]]; do
         --seed) SEED="$2"; shift ;;
         --datasets) DATASETS="$2"; shift ;;
         --whitebox_model) MODEL_NAME="$2"; shift ;;
+        --temperature) TEMPERATURE="$2"; shift ;;
         *) echo "Invalid option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -37,7 +40,7 @@ elif [ "$MODEL_NAME" == "wizardlm" ]; then
 fi
 
 for i in ${DATASETS[@]}; do
-    echo "### STARTING RUN FOR $i ###"
+    echo "### STARTING RUN FOR $i ###"  
     python InstructZero/experiments/run_instructzero.py \
     --task $i \
     --random_proj ${RANDOM_PROJ} \
@@ -46,7 +49,9 @@ for i in ${DATASETS[@]}; do
     --HF_cache_dir ${model_dir} \
     --seed ${SEED} \
     --model_name ${MODEL_NAME} \
-    --out_file ${OUT_FILE} \
+    --bbox_model ${BBOX_MODEL} \
+    --no_prompt \
     --do_sample \
-    --bbox_model ${BBOX_MODEL}
+    --temperature ${TEMPERATURE} \
+    --out_file ${OUT_FILE}
 done
