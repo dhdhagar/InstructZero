@@ -361,7 +361,7 @@ def run(args):
         for idx in np.argsort(-1 * np.array(best_vals)):
             if args.random_prompt:
                 # Sample a random soft prompt instead of using the BO proposal
-                X_next_point = sobol.draw(1).unsqueeze(0)
+                X_next_point = sobol.draw(1)
             else:
                 X_next_point = torch.from_numpy(best_points[idx]).float().unsqueeze(0)
             # Y_next_point = [model_forward_api.eval(X_next_point)]
