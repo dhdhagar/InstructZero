@@ -22,7 +22,7 @@ def get_eval_method(eval_method):
         raise ValueError('Invalid evaluation method.')
 
 
-def evaluate_prompts(prompts, eval_template, eval_data, demos_template, few_shot_data, eval_method, config):
+def evaluate_prompts(prompts, eval_template, eval_data, demos_template, few_shot_data, eval_method, config, cache=None):
     """
     Returns the scores for a list of prompts.
     Parameters:
@@ -35,7 +35,7 @@ def evaluate_prompts(prompts, eval_template, eval_data, demos_template, few_shot
         An evaluation result object.
     """
     eval_method = get_eval_method(eval_method)
-    return eval_method(prompts, eval_template, eval_data, demos_template, few_shot_data, config)
+    return eval_method(prompts, eval_template, eval_data, demos_template, few_shot_data, config, cache=cache)
 
 
 def demo_function(eval_template, config):

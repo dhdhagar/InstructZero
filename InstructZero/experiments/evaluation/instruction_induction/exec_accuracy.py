@@ -22,7 +22,7 @@ def get_query_for_test(prompt, eval_template, input_, output_):
 
 
 
-def exec_accuracy_evaluator(prompts, eval_template, eval_data, demos_template, few_shot_data, config):
+def exec_accuracy_evaluator(prompts, eval_template, eval_data, demos_template, few_shot_data, config, cache=None):
     queries = []
     answers = []
     for prompt in prompts:
@@ -40,7 +40,20 @@ def exec_accuracy_evaluator(prompts, eval_template, eval_data, demos_template, f
 
     # Instantiate the LLM
     model = llm.model_from_config(config['model'])
-    model_outputs = model.generate_text(queries, 1)
+    model_outputs = []
+    uncached_queries = []
+    if cache is not None:
+        # Check if the queries are in the cache
+        for query in queries:
+            if query in cache:
+                model_outputs.append(cache[query])
+            else:
+                uncached_queries.append(query)
+    _model_outputs = model.generate_text(uncached_queries if cache is not None else queries, 1)
+    if cache is not None:
+        for query, output in zip(uncached_queries, _model_outputs):
+            cache[query] = output
+    model_outputs += _model_outputs
 
     task = config['task']
     metric = utility.TASK_TO_METRIC.get(task, utility.default_metric)

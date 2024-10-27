@@ -71,10 +71,19 @@ def parse_args():
         "--no_prompt", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument(
+        "--random_prompt", action=argparse.BooleanOptionalAction, default=False
+    )
+    parser.add_argument(
+        "--coupled_kernel", action=argparse.BooleanOptionalAction, default=True
+    )
+    parser.add_argument(
         "--do_sample", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument(
         "--bbox_model", type=str, default='gpt-3.5-turbo'
+    )
+    parser.add_argument(
+        "--bbox_cache", type=str, default='bbox_cache.json'
     )
     args = parser.parse_args()
     return args

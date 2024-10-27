@@ -160,7 +160,7 @@ def find_prompts(eval_template,
 
 
 def evaluate_prompts(prompts, eval_template, eval_data, demos_template, few_shot_data, conf,
-                     base_conf='configs/default.yaml'):
+                     base_conf='configs/default.yaml', cache=None):
     """
     Function to evaluate a list of prompts.
     Parameters:
@@ -183,7 +183,7 @@ def evaluate_prompts(prompts, eval_template, eval_data, demos_template, few_shot
     print('Evaluating prompts...')
     res = evaluate.evaluate_prompts(
         prompts, eval_template, eval_data, demos_template, few_shot_data, conf['evaluation']['method'],
-        conf['evaluation'])
+        conf['evaluation'], cache=cache)
 
     print('Finished evaluating.')
 

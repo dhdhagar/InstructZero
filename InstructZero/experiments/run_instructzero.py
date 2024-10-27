@@ -27,18 +27,20 @@ from args import parse_args
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-    
+
 class LMForwardAPI:
     def __init__(self, model_name=None, eval_data=None, init_prompt=None, init_qa=None, conf=None, base_conf=None,
-                 prompt_gen_data=None, random_proj=None, intrinsic_dim=None, n_prompt_tokens=None, few_shot_data=None, 
-                 HF_cache_dir=None, args=None):
+                 prompt_gen_data=None, random_proj=None, intrinsic_dim=None, n_prompt_tokens=None, few_shot_data=None,
+                 HF_cache_dir=None, args=None, bbox_cache=None):
         p = torch.ones(10)
-        
-        self.args = args 
-        kwargs={
+
+        self.bbox_cache = bbox_cache if bbox_cache is not None else {}
+
+        self.args = args
+        kwargs = {
             'torch_dtype': torch.float16,
             'use_cache': True
-            }
+        }
         self.ops_model = model_name
         # import pdb; pdb.set_trace()
         if self.ops_model in ["vicuna", "wizardlm", 'openchat']:
@@ -50,11 +52,11 @@ class LMForwardAPI:
             )
 
             self.tokenizer = AutoTokenizer.from_pretrained(
-                                HF_cache_dir,
-                                model_max_length=1024,
-                                padding_side="left",
-                                use_fast=False,
-                            )
+                HF_cache_dir,
+                model_max_length=1024,
+                padding_side="left",
+                use_fast=False,
+            )
         else:
             raise NotImplementedError
 
@@ -63,28 +65,30 @@ class LMForwardAPI:
             self.embedding = self.model.get_input_embeddings().weight.clone()
             input_ids = self.tokenizer(init_prompt, return_tensors="pt").input_ids.cuda()
             self.init_prompt = self.embedding[input_ids]
-            
+
         ################# setup n_prompts_token #################
         self.n_prompt_tokens = n_prompt_tokens
         self.hidden_size = self.init_prompt.shape[-1]
         print('Shape of initial prompt embedding: {}'.format(self.init_prompt.shape))
-        
+
         # self.init_prompt = self.init_prompt.reshape(self.n_prompt_tokens * self.hidden_size)
         # Create the template for Vicuna and WizardLM
         self.count = 0
         self.linear = torch.nn.Linear(intrinsic_dim, self.n_prompt_tokens * self.hidden_size, bias=False)
         if self.ops_model == 'vicuna':
-            self.system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+            self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
+The assistant gives helpful, detailed, and polite answers to the user's questions."""
             self.role = ['USER:', 'ASSISTANT:']
         elif self.ops_model == 'wizardlm':
-            self.system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+            self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
+The assistant gives helpful, detailed, and polite answers to the user's questions."""
             self.role = ['USER:', 'ASSISTANT:']
         elif self.ops_model == 'alpaca':
-            self.system_prompt= "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+            self.system_prompt = """Below is an instruction that describes a task. Write a response that appropriately \
+completes the request."""
             self.role = ["### Instruction:", "### Response:"]
         else:
-            NotImplementedError
-            
+            raise NotImplementedError
 
         if random_proj == 'normal':
             # calculate std for normal distribution
@@ -99,7 +103,7 @@ class LMForwardAPI:
 
             print('[Embedding] mu: {} | std: {} [RandProj]  mu: {} | std: {}'.format(mu_hat, std_hat, mu, std))
             torch.nn.init.normal_(self.linear.weight, -1, 1)
-        elif random_proj == 'uniform':  
+        elif random_proj == 'uniform':
             torch.nn.init.uniform_(self.linear.weight, -1, 1)
 
         ## eval preparation
@@ -116,7 +120,7 @@ class LMForwardAPI:
 
         if few_shot_data is None:
             self.few_shot_data = prompt_gen_data
-        
+
         self.best_train_perf = 0.0
         self.best_dev_perf = 0.0
         self.best_last_perf = 10
@@ -136,14 +140,14 @@ class LMForwardAPI:
                 z = torch.tensor(pe).type(torch.float32)  # z
                 z = self.linear(z)  # Az
             prompt_embedding = torch.cat(pe_list)  # num_workers*bsz x prompt_len x dim
-    
+
         elif isinstance(prompt_embedding, np.ndarray):  # single query or None
             prompt_embedding = torch.tensor(prompt_embedding).type(torch.float32)  # z
             prompt_embedding = self.linear(prompt_embedding)  # Az
             # if self.init_prompt is not None:
             #     prompt_embedding = prompt_embedding + self.init_prompt  # Az + p_0
             prompt_embedding = prompt_embedding.reshape(1, self.n_prompt_tokens, -1)
-        elif isinstance(prompt_embedding, torch.Tensor): 
+        elif isinstance(prompt_embedding, torch.Tensor):
             prompt_embedding = prompt_embedding.type(torch.float32)
             prompt_embedding = self.linear(prompt_embedding)  # Az
             prompt_embedding = prompt_embedding.reshape(1, self.n_prompt_tokens, -1)
@@ -186,13 +190,20 @@ class LMForwardAPI:
 
         # print post-processed instruction
         print('Instruction: {}'.format(instruction))
-        
+
         if instruction[0] in self.prompts_set.keys():
             (dev_perf, instruction_score) = self.prompts_set[instruction[0]]
             model_outputs = ['cache']
         else:
-            if self.api_model in ['chatgpt']: 
-                dev_perf, instruction_score, model_outputs = evaluate.evaluate_prompts(instruction, self.eval_template, self.eval_data, self.demos_template, self.few_shot_data, self.conf['evaluation']['method'], self.conf['evaluation'])
+            if self.api_model in ['chatgpt']:
+                dev_perf, instruction_score, model_outputs = evaluate.evaluate_prompts(instruction, self.eval_template,
+                                                                                       self.eval_data,
+                                                                                       self.demos_template,
+                                                                                       self.few_shot_data,
+                                                                                       self.conf['evaluation'][
+                                                                                           'method'],
+                                                                                       self.conf['evaluation'],
+                                                                                       cache=self.bbox_cache)
                 dev_perf = dev_perf.sorted()[1][0]
                 self.prompts_set[instruction[0]] = (dev_perf, instruction_score)
             # We will fix the bugs for other api models. Stay tuned!
@@ -221,20 +232,28 @@ class LMForwardAPI:
 
     def return_best_prompt(self):
         return self.best_instruction
-    
+
     def return_best_dev_perf(self):
         return self.best_dev_perf
 
     def return_prompts_set(self):
         return self.prompts_set
-    
+
+
 def run(args):
-    task, HF_cache_dir=args.task, args.HF_cache_dir
-    random_proj, intrinsic_dim, n_prompt_tokens= args.random_proj, args.intrinsic_dim, args.n_prompt_tokens
+    task, HF_cache_dir = args.task, args.HF_cache_dir
+    random_proj, intrinsic_dim, n_prompt_tokens = args.random_proj, args.intrinsic_dim, args.n_prompt_tokens
 
     assert args.task in TASKS, 'Task not found!'
 
     induce_data, test_data = load_data('induce', task), load_data('eval', task)
+
+    # Set up bbox cache; check if the cache exists
+    BBOX_CACHE = {}
+    if os.path.exists(args.bbox_cache):
+        with open(args.bbox_cache, 'r') as fh:
+            BBOX_CACHE = json.load(fh)
+        print(f"Loaded {len(BBOX_CACHE)} bbox evaluations from cache")
 
     # Get size of the induce data
     induce_data_size = len(induce_data[0])
@@ -249,7 +268,7 @@ def run(args):
                                            for output in prompt_gen_data[1]]
     # import pdb; pdb.set_trace()
     demos_template = "Input: [INPUT]\nOutput: [OUTPUT]"
-    eval_template = "Instruction: [PROMPT]\n\nInput: [INPUT]\n\nOUTPUT: [OUTPUT]" # change the evaluation template
+    eval_template = "Instruction: [PROMPT]\n\nInput: [INPUT]\n\nOUTPUT: [OUTPUT]"  # change the evaluation template
     init_prompt = ['\n']
     prompt_gen_template = "[full_DEMO]\n\nThe instruction was to?"
     # prompt_gen_template = "[full_DEMO]\n\nWhat was the instruction for the task?"
@@ -257,7 +276,7 @@ def run(args):
 
     base_conf = '../configs/instruction_induction.yaml'
     conf = get_conf(task, eval_data)
-    
+
     if args.bbox_model is not None:
         conf['evaluation']['model']['gpt_config']['model'] = args.bbox_model
 
@@ -267,18 +286,20 @@ def run(args):
     d_template = template.DemosTemplate(demos_template)
     demos = d_template.fill(subsampled_data)
     init_qa = [prompt_gen_template.fill(demos)]
-    
-    model_forward_api = LMForwardAPI(model_name=args.model_name, eval_data=eval_data, init_prompt=init_prompt, 
-                                    init_qa=init_qa, conf=conf, base_conf=base_conf, prompt_gen_data=prompt_gen_data, random_proj=random_proj, 
-                                    intrinsic_dim=intrinsic_dim, n_prompt_tokens=n_prompt_tokens, HF_cache_dir=HF_cache_dir, args=args)
-        
+
+    model_forward_api = LMForwardAPI(model_name=args.model_name, eval_data=eval_data, init_prompt=init_prompt,
+                                     init_qa=init_qa, conf=conf, base_conf=base_conf, prompt_gen_data=prompt_gen_data,
+                                     random_proj=random_proj,
+                                     intrinsic_dim=intrinsic_dim, n_prompt_tokens=n_prompt_tokens,
+                                     HF_cache_dir=HF_cache_dir, args=args, bbox_cache=BBOX_CACHE)
+
     # start bayesian opt
-    X = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=args.seed).draw(N_INIT)
+    sobol = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=args.seed)
+    X = sobol.draw(N_INIT)
     X_return = [model_forward_api.eval(x) for x in X]
     Y = [X[0] for X in X_return]
     Y_scores = [X[1].squeeze() for X in X_return]
     bbox_evals = [X[2] for X in X_return]
-
 
     X = X.to(**tkwargs)
     Y = torch.FloatTensor(Y).unsqueeze(-1).to(**tkwargs)
@@ -287,24 +308,26 @@ def run(args):
 
     # standardization Y (no standardization for X)
     X_train = X
-    y_train = (Y - Y.mean(dim=-2))/(Y.std(dim=-2) + 1e-9)
+    y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
 
     # define matern kernel
     matern_kernel = MaternKernel(
-                    nu=2.5,
-                    ard_num_dims=X_train.shape[-1],
-                    lengthscale_prior=GammaPrior(3.0, 6.0),
-                )
+        nu=2.5,
+        ard_num_dims=X_train.shape[-1],
+        lengthscale_prior=GammaPrior(3.0, 6.0),
+    )
     matern_kernel_instruction = MaternKernel(
-                nu=2.5,
-                ard_num_dims=Y_scores.shape[-1],
-                lengthscale_prior=GammaPrior(3.0, 6.0),
-            )
-    
-    covar_module = ScaleKernel(base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel, instruction_kernel=matern_kernel_instruction, latent_train=X_train.double(), instruction_train=Y_scores))
+        nu=2.5,
+        ard_num_dims=Y_scores.shape[-1],
+        lengthscale_prior=GammaPrior(3.0, 6.0),
+    )
+
+    covar_module = ScaleKernel(
+        base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel, instruction_kernel=matern_kernel_instruction,
+                                         latent_train=X_train.double(), instruction_train=Y_scores))
     gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
     gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
-    
+
     for i in range(N_ITERATIONS):
         if round(float(model_forward_api.return_best_dev_perf()), 4) >= 1.0:
             print(f"\nTerminating early after {i} iterations: found best dev score of 1.0\n")
@@ -315,14 +338,13 @@ def run(args):
 
         start_time = time.time()
 
-        fit_gpytorch_model(gp_mll)#, options = {'maxiter':10})
-        print(f"Fitting done in {time.time()-start_time}")
+        fit_gpytorch_model(gp_mll)  # , options = {'maxiter':10})
+        print(f"Fitting done in {time.time() - start_time}")
         start_time = time.time()
-        EI = ExpectedImprovement(gp_model, best_f = y_train.max().item())
-        
-        starting_idxs = torch.argsort(-1*y_train.squeeze())[:BATCH_SIZE]
-        starting_points = X_train[starting_idxs]
+        EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
 
+        starting_idxs = torch.argsort(-1 * y_train.squeeze())[:BATCH_SIZE]
+        starting_points = X_train[starting_idxs]
 
         best_points = []
         best_vals = []
@@ -332,13 +354,17 @@ def run(args):
             newp, newv = cma_es_concat(starting_point_for_cma, EI, tkwargs)
             best_points.append(newp)
             best_vals.append(newv)
-            
+
         print(f"best point {best_points[np.argmax(best_vals)]} \n with EI value {np.max(best_vals)}")
         print(f"Time for CMA-ES {time.time() - start_time}")
-        for idx in np.argsort(-1*np.array(best_vals)):
-            X_next_point =  torch.from_numpy(best_points[idx]).float().unsqueeze(0)
+        for idx in np.argsort(-1 * np.array(best_vals)):
+            if args.random_prompt:
+                # Sample a random soft prompt instead of using the BO proposal
+                X_next_point = sobol.draw(1).unsqueeze(0)
+            else:
+                X_next_point = torch.from_numpy(best_points[idx]).float().unsqueeze(0)
             # Y_next_point = [model_forward_api.eval(X_next_point)]
-            
+
             X_next_points_return = [model_forward_api.eval(X_next_point)]
             Y_next_point = [X[0] for X in X_next_points_return]
             Y_scores_next_points = [X[1].squeeze() for X in X_next_points_return]
@@ -355,19 +381,25 @@ def run(args):
 
         # standardization Y
         X_train = X.clone()
-        y_train = (Y - Y.mean(dim=-2))/(Y.std(dim=-2) + 1e-9)
+        y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
 
         matern_kernel = MaternKernel(
-                        nu=2.5,
-                        ard_num_dims=X_train.shape[-1],
-                        lengthscale_prior=GammaPrior(3.0, 6.0),
-                    )
+            nu=2.5,
+            ard_num_dims=X_train.shape[-1],
+            lengthscale_prior=GammaPrior(3.0, 6.0),
+        )
         matern_kernel_instruction = MaternKernel(
-                nu=2.5,
-                ard_num_dims=Y_scores.shape[-1],
-                lengthscale_prior=GammaPrior(3.0, 6.0),
-            )
-        covar_module = ScaleKernel(base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel, instruction_kernel=matern_kernel_instruction, latent_train=X_train.double(), instruction_train=Y_scores))
+            nu=2.5,
+            ard_num_dims=Y_scores.shape[-1],
+            lengthscale_prior=GammaPrior(3.0, 6.0),
+        )
+        if args.coupled_kernel:
+            covar_module = ScaleKernel(base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel,
+                                                                        instruction_kernel=matern_kernel_instruction,
+                                                                        latent_train=X_train.double(),
+                                                                        instruction_train=Y_scores))
+        else:
+            covar_module = ScaleKernel(matern_kernel)
         gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
         gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
         print(f"Best value found till now: {torch.max(Y)}")
@@ -376,7 +408,7 @@ def run(args):
     prompts = model_forward_api.return_best_prompt()
     best_dev_perf = round(float(model_forward_api.return_best_dev_perf()), 4)
     prompts_set = model_forward_api.return_prompts_set()
-    prompts_set = {k: round(float(v[0]), 4) for k,v in prompts_set.items()}
+    prompts_set = {k: round(float(v[0]), 4) for k, v in prompts_set.items()}
     print("Best instruction is:")
     print(prompts)
     print(f'(dev perf={best_dev_perf})')
@@ -388,20 +420,27 @@ def run(args):
     print('Evaluating on test data...')
 
     test_conf = get_test_conf(task, test_data)
-    
+
     if args.bbox_model is not None:
         test_conf['evaluation']['model']['gpt_config']['model'] = args.bbox_model
 
     _, test_scores, test_outputs = ape.evaluate_prompts(prompts=prompts,
-                                    eval_template=eval_template,
-                                    eval_data=test_data,
-                                    few_shot_data=prompt_gen_data,
-                                    demos_template=demos_template,
-                                    conf=test_conf,
-                                    base_conf=base_conf)
+                                                        eval_template=eval_template,
+                                                        eval_data=test_data,
+                                                        few_shot_data=prompt_gen_data,
+                                                        demos_template=demos_template,
+                                                        conf=test_conf,
+                                                        base_conf=base_conf,
+                                                        cache=BBOX_CACHE)
     # test_res = _test_res[0]
     test_score = round(float(np.mean(test_scores)), 4)  # test_res.sorted()[1][0]
     test_outputs_scores = list(zip(test_outputs, test_scores.squeeze().tolist()))
+
+    # Save bbox evaluations to cache
+    with open(args.bbox_cache, 'w') as fh:
+        fh.write(json.dumps(BBOX_CACHE, indent=2))
+    print(f"Saved {len(BBOX_CACHE)} bbox evaluations to cache")
+
     return test_score, test_outputs_scores, best_dev_perf, prompts, prompts_set, bbox_evals
     # print(f'Test score on ChatGPT: {test_score}')
 
@@ -427,7 +466,7 @@ if __name__ == '__main__':
         "bbox_evals": bbox_evals
     }
 
-    res_dirname = f"{args.out_file+'_' if args.out_file is not None else ''}{args.model_name}_{args.bbox_model}"
+    res_dirname = f"{args.out_file + '_' if args.out_file is not None else ''}{args.model_name}_{args.bbox_model}"
     os.makedirs(f"results/{res_dirname}/{args.task}", exist_ok=True)
     res_fpath = f"results/{res_dirname}/{args.task}/seed-{args.seed}.json"
     with open(res_fpath, 'w') as fh:
