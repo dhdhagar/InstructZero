@@ -21,7 +21,8 @@ from gpytorch.priors import GammaPrior
 from instruction_coupled_kernel import *
 import time
 
-from misc import set_all_seed, TASKS, tkwargs, N_INIT, BATCH_SIZE, N_ITERATIONS
+from misc import set_all_seed, TASKS, tkwargs
+# N_INIT, BATCH_SIZE, N_ITERATIONS
 
 from args import parse_args
 
@@ -449,6 +450,10 @@ if __name__ == '__main__':
     args = parse_args()
     print("Script arguments:")
     print(args.__dict__)
+    global N_INIT, BATCH_SIZE, N_ITERATIONS
+    N_INIT = args.n_init  # initial number of points
+    N_ITERATIONS = args.n_iterations  # number of iterations
+    BATCH_SIZE = args.batch_size
     # evaluation budget
     print(f"\nUsing a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
     print(set_all_seed(args.seed))

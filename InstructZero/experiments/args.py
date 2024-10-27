@@ -85,5 +85,14 @@ def parse_args():
     parser.add_argument(
         "--bbox_cache", type=str, default='bbox_cache.json'
     )
+    parser.add_argument(
+        "--n_init", type=int, default=25
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=25
+    )
+    parser.add_argument(
+        "--n_iterations", type=int, default=5
+    )
     args = parser.parse_args()
     return args
