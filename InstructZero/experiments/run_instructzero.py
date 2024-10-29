@@ -434,11 +434,11 @@ def run(args):
         # Filter and save only unique X_train and corresponding to Y_train to f"{OUT_DIR}/ground_truth.pt"
         X_train_unique, indices = torch.unique(X_train, return_inverse=True, dim=0)
         y_train_unique = y_train[indices]
-        torch.save((X_train_unique, y_train_unique), f"{OUT_DIR}/ground_truth.pt")
+        torch.save((X_train_unique, y_train_unique), f"{OUT_DIR}/ground_truth_seed-{args.seed}.pt")
         print(f"Saved {len(X_train_unique)} unique ground truth (x,y) pairs to {OUT_DIR}/ground_truth.pt")
 
     if args.visualize_posterior:
-        posterior_path = os.path.join(OUT_DIR, f'posterior.json')
+        posterior_path = os.path.join(OUT_DIR, f'posterior_seed-{args.seed}.json')
         plot_posterior(posterior_vals=posterior_vals, obs_xy=viz_observed, posterior_cands=viz_repr,
                        animate=True, anim_interval=300, anim_repeat=True, path=posterior_path)
 
