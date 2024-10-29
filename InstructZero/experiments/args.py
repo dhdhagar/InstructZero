@@ -97,5 +97,8 @@ def parse_args():
     parser.add_argument(
         "--temperature", type=float, default=1.0
     )
+    parser.add_argument(
+        "--track_ground_truth", action=argparse.BooleanOptionalAction, default=False
+    )
     args = parser.parse_args()
     return args

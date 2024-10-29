@@ -405,6 +405,13 @@ def run(args):
         gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
         print(f"Best value found till now: {torch.max(Y)}")
 
+    if args.track_ground_truth:
+        # Filter and save only unique X_train and corresponding to Y_train to f"{OUT_DIR}/ground_truth.pt"
+        X_train_unique, indices = torch.unique(X_train, return_index=True, dim=0)
+        y_train_unique = y_train[indices]
+        torch.save((X_train_unique, y_train_unique), f"{OUT_DIR}/ground_truth.pt")
+        print(f"Saved {len(X_train_unique)} unique ground truth (x,y) pairs to {OUT_DIR}/ground_truth.pt")
+
     print('Evaluate on test data...')
     prompts = model_forward_api.return_best_prompt()
     best_dev_perf = round(float(model_forward_api.return_best_dev_perf()), 4)
@@ -454,6 +461,14 @@ if __name__ == '__main__':
     N_INIT = args.n_init  # initial number of points
     N_ITERATIONS = args.n_iterations  # number of iterations
     BATCH_SIZE = args.batch_size
+
+    # Get res dirs
+    res_dirname = f"{args.out_file + '_' if args.out_file is not None else ''}{args.model_name}_{args.bbox_model}"
+    global OUT_DIR
+    OUT_DIR = f"results/{res_dirname}/{args.task}"
+    os.makedirs(OUT_DIR, exist_ok=True)
+    res_fpath = f"{OUT_DIR}/seed-{args.seed}.json"
+
     # evaluation budget
     print(f"\nUsing a total of {N_INIT + BATCH_SIZE * N_ITERATIONS} function evaluations")
     print(set_all_seed(args.seed))
@@ -471,9 +486,6 @@ if __name__ == '__main__':
         "bbox_evals": bbox_evals
     }
 
-    res_dirname = f"{args.out_file + '_' if args.out_file is not None else ''}{args.model_name}_{args.bbox_model}"
-    os.makedirs(f"results/{res_dirname}/{args.task}", exist_ok=True)
-    res_fpath = f"results/{res_dirname}/{args.task}/seed-{args.seed}.json"
     with open(res_fpath, 'w') as fh:
         fh.write(json.dumps(results, indent=2))
     print(f"Saved results to: {res_fpath}\n\n")
