@@ -152,8 +152,9 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
         ax.set_title(f"t = {frame}")
         ax.set_ylabel("Objective")
         # Set y limit to be the same for all frames
-        ax.set_ylim([-0.1, 1.1])  # ax.set_ylim([-5, 5] if args.surrogate_fn == "laplace" else [-0.1, 1.1])
-        ax.set_xlabel("Rank")
+        ax.set_ylim([-1.1, 1.1])
+        # ax.set_ylim([-0.1, 1.1])  # ax.set_ylim([-5, 5] if args.surrogate_fn == "laplace" else [-0.1, 1.1])
+        ax.set_xlabel("Candidates (sorted by ground-truth scores)")
         if top_k is not None:
             ax.set_xlim([0, top_k + 1])
         ax.grid()
