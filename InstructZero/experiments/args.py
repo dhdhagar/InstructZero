@@ -100,5 +100,8 @@ def parse_args():
     parser.add_argument(
         "--track_ground_truth", action=argparse.BooleanOptionalAction, default=False
     )
+    parser.add_argument(
+        "--visualize_posterior", type=str, help="Path to candidates to visualize the posterior"
+    )
     args = parser.parse_args()
     return args

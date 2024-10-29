@@ -9,9 +9,10 @@ from automatic_prompt_engineer import evaluate, config, template, data
 import os
 import re
 import json
-from misc import get_test_conf, get_conf
+from misc import get_test_conf, get_conf, plot_posterior
 
 from torch.quasirandom import SobolEngine
+from torch.utils.data import DataLoader, TensorDataset
 from botorch.models import SingleTaskGP
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch import fit_gpytorch_model
@@ -249,6 +250,13 @@ def run(args):
 
     induce_data, test_data = load_data('induce', task), load_data('eval', task)
 
+    if args.visualize_posterior:
+        posterior_vals, viz_observed = {}, []
+        viz_repr, viz_scores = torch.load(args.visualize_posterior)
+        # sort in ascending order of y
+        _argsort = viz_scores.argsort(dim=0).squeeze()
+        viz_repr, viz_scores = viz_repr[_argsort], viz_scores[_argsort]
+
     # Set up bbox cache; check if the cache exists
     BBOX_CACHE = {}
     if os.path.exists(args.bbox_cache):
@@ -341,7 +349,20 @@ def run(args):
 
         fit_gpytorch_model(gp_mll)  # , options = {'maxiter':10})
         print(f"Fitting done in {time.time() - start_time}")
-        start_time = time.time()
+
+        if args.visualize_posterior:
+            dataloader = DataLoader(TensorDataset(viz_repr, viz_scores), batch_size=256)
+            f_vals = []
+            for _x, _y in dataloader:
+                posterior = gp_model.posterior(_x.to(**tkwargs))
+                with torch.no_grad():
+                    f_vals.append(torch.stack(
+                        (y.to(device), posterior.mean.squeeze(), posterior.variance.sqrt().squeeze()), dim=-1))
+            f_vals = torch.cat(f_vals, dim=0).tolist()
+            posterior_vals[i] = f_vals
+            if len(viz_observed) == 0:
+                viz_observed.append(list(zip(X_train, y_train.tolist())))  # add warmstart observations
+
         EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
 
         starting_idxs = torch.argsort(-1 * y_train.squeeze())[:BATCH_SIZE]
@@ -349,6 +370,7 @@ def run(args):
 
         best_points = []
         best_vals = []
+        start_time = time.time()
         for starting_point_for_cma in starting_points:
             if (torch.max(starting_point_for_cma) > 1 or torch.min(starting_point_for_cma) < -1):
                 continue
@@ -384,6 +406,9 @@ def run(args):
         X_train = X.clone()
         y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
 
+        if args.visualize_posterior:
+            viz_observed.append(list(zip(X_train, y_train.tolist())))
+
         matern_kernel = MaternKernel(
             nu=2.5,
             ard_num_dims=X_train.shape[-1],
@@ -411,6 +436,16 @@ def run(args):
         y_train_unique = y_train[indices]
         torch.save((X_train_unique, y_train_unique), f"{OUT_DIR}/ground_truth.pt")
         print(f"Saved {len(X_train_unique)} unique ground truth (x,y) pairs to {OUT_DIR}/ground_truth.pt")
+
+    if args.visualize_posterior:
+        posterior_path = os.path.join(OUT_DIR, f'posterior.json')
+        plot_posterior(posterior_vals=posterior_vals, obs_xy=viz_observed, posterior_cands=viz_repr,
+                       animate=True, anim_interval=300, anim_repeat=True, path=posterior_path)
+        with open(posterior_path, 'w') as fh:
+            fh.write(json.dumps({
+                "y_mean_std": posterior_vals,
+                "obs_xy": viz_observed
+            }, indent=2))
 
     print('Evaluate on test data...')
     prompts = model_forward_api.return_best_prompt()
