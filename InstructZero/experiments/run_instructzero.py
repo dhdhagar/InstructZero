@@ -441,11 +441,6 @@ def run(args):
         posterior_path = os.path.join(OUT_DIR, f'posterior.json')
         plot_posterior(posterior_vals=posterior_vals, obs_xy=viz_observed, posterior_cands=viz_repr,
                        animate=True, anim_interval=300, anim_repeat=True, path=posterior_path)
-        with open(posterior_path, 'w') as fh:
-            fh.write(json.dumps({
-                "y_mean_std": posterior_vals,
-                "obs_xy": viz_observed
-            }, indent=2))
 
     print('Evaluate on test data...')
     prompts = model_forward_api.return_best_prompt()
