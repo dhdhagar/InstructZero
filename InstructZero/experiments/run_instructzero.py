@@ -357,11 +357,11 @@ def run(args):
                 posterior = gp_model.posterior(_x.to(**tkwargs))
                 with torch.no_grad():
                     f_vals.append(torch.stack(
-                        (_y.to(**tkwargs), posterior.mean.squeeze(), posterior.variance.sqrt().squeeze()), dim=-1))
+                        (_y.to(**tkwargs).squeeze(), posterior.mean.squeeze(), posterior.variance.sqrt().squeeze()), dim=-1))
             f_vals = torch.cat(f_vals, dim=0).tolist()
             posterior_vals[i] = f_vals
             if len(viz_observed) == 0:
-                viz_observed.append(list(zip(X_train, y_train.tolist())))  # add warmstart observations
+                viz_observed.append(list(zip(X_train, y_train.squeeze().tolist())))  # add warmstart observations
 
         EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
 
@@ -407,7 +407,7 @@ def run(args):
         y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
 
         if args.visualize_posterior:
-            viz_observed.append(list(zip(X_train, y_train.tolist())))
+            viz_observed.append(list(zip(X_train, y_train.squeeze().tolist())))
 
         matern_kernel = MaternKernel(
             nu=2.5,
