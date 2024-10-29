@@ -357,7 +357,7 @@ def run(args):
                 posterior = gp_model.posterior(_x.to(**tkwargs))
                 with torch.no_grad():
                     f_vals.append(torch.stack(
-                        (y.to(device), posterior.mean.squeeze(), posterior.variance.sqrt().squeeze()), dim=-1))
+                        (_y.to(device), posterior.mean.squeeze(), posterior.variance.sqrt().squeeze()), dim=-1))
             f_vals = torch.cat(f_vals, dim=0).tolist()
             posterior_vals[i] = f_vals
             if len(viz_observed) == 0:
