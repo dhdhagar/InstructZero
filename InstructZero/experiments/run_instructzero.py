@@ -407,7 +407,7 @@ def run(args):
 
     if args.track_ground_truth:
         # Filter and save only unique X_train and corresponding to Y_train to f"{OUT_DIR}/ground_truth.pt"
-        X_train_unique, indices = torch.unique(X_train, return_index=True, dim=0)
+        X_train_unique, indices = torch.unique(X_train, return_inverse=True, dim=0)
         y_train_unique = y_train[indices]
         torch.save((X_train_unique, y_train_unique), f"{OUT_DIR}/ground_truth.pt")
         print(f"Saved {len(X_train_unique)} unique ground truth (x,y) pairs to {OUT_DIR}/ground_truth.pt")
