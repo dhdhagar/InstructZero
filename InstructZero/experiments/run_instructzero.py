@@ -447,7 +447,7 @@ def run(args):
     if args.visualize_posterior:
         posterior_path = os.path.join(OUT_DIR, f'posterior_seed-{args.seed}.json')
         plot_posterior(posterior_vals=posterior_vals, obs_xy=viz_observed,
-                       posterior_cands=[str(_v.tolist()) for _v in viz_repr],
+                       posterior_cands=list(zip([str(_v.tolist()) for _v in viz_repr], viz_scores.squeeze().tolist())),
                        animate=True, anim_interval=300, anim_repeat=True, path=posterior_path)
 
     print('Evaluate on test data...')
