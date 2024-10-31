@@ -364,7 +364,8 @@ def run(args):
             f_vals = torch.cat(f_vals, dim=0).tolist()
             posterior_vals[i] = f_vals
             if len(viz_observed) == 0:
-                viz_observed.append(list(zip([str(_x.tolist()) for _x in X], Y.squeeze().tolist())))  # add warmstart observations
+                viz_observed.append(
+                    list(zip([str(_x.tolist()) for _x in X], Y.squeeze().tolist())))  # add warmstart observations
 
         EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
 
@@ -445,7 +446,8 @@ def run(args):
 
     if args.visualize_posterior:
         posterior_path = os.path.join(OUT_DIR, f'posterior_seed-{args.seed}.json')
-        plot_posterior(posterior_vals=posterior_vals, obs_xy=viz_observed, posterior_cands=viz_repr,
+        plot_posterior(posterior_vals=posterior_vals, obs_xy=viz_observed,
+                       posterior_cands=[str(_v.tolist()) for _v in viz_repr],
                        animate=True, anim_interval=300, anim_repeat=True, path=posterior_path)
 
     print('Evaluate on test data...')
