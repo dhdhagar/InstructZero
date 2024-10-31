@@ -439,8 +439,9 @@ def run(args):
         # Filter and save only unique X_train and corresponding to Y_train to f"{OUT_DIR}/ground_truth.pt"
         X_unique, indices = torch.unique(X, return_inverse=True, dim=0)
         Y_unique = Y[indices]
-        torch.save((X_unique, Y_unique), f"{OUT_DIR}/ground_truth_seed-{args.seed}.pt")
-        print(f"Saved {len(X_unique)} unique ground truth (x,y) pairs to {OUT_DIR}/ground_truth.pt")
+        ground_truth_path = f"{OUT_DIR}/ground_truth_seed-{args.seed}.pt"
+        torch.save((X_unique, Y_unique), ground_truth_path)
+        print(f"Saved {len(X_unique)} unique ground truth (x,y) pairs to {ground_truth_path}")
 
     if args.visualize_posterior:
         posterior_path = os.path.join(OUT_DIR, f'posterior_seed-{args.seed}.json')
