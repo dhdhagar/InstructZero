@@ -306,9 +306,15 @@ def run(args):
     sobol = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=args.seed)
     X = sobol.draw(N_INIT)
     X_return = [model_forward_api.eval(x) for x in X]
-    Y = [X[0] for X in X_return]
-    Y_scores = [X[1].squeeze() for X in X_return]
-    bbox_evals = [X[2] for X in X_return]
+    Y = [_X[0] for _X in X_return]
+    if args.visualize_posterior:
+        # Check if X is in the ground truth; use the corresponding Y values
+        for _i in range(len(X)):
+            if X[_i] in viz_repr:
+                Y[_i] = float(viz_scores[(viz_repr == X[_i]).nonzero()[0, 0]])
+
+    Y_scores = [_X[1].squeeze() for _X in X_return]
+    bbox_evals = [_X[2] for _X in X_return]
 
     X = X.to(**tkwargs)
     Y = torch.FloatTensor(Y).unsqueeze(-1).to(**tkwargs)
@@ -393,9 +399,15 @@ def run(args):
             # Y_next_point = [model_forward_api.eval(X_next_point)]
 
             X_next_points_return = [model_forward_api.eval(X_next_point)]
-            Y_next_point = [X[0] for X in X_next_points_return]
-            Y_scores_next_points = [X[1].squeeze() for X in X_next_points_return]
-            bbox_evals_next_points = [X[2] for X in X_next_points_return]
+            Y_next_point = [_X[0] for _X in X_next_points_return]
+            Y_scores_next_points = [_X[1].squeeze() for _X in X_next_points_return]
+            if args.visualize_posterior:
+                # Check if X is in the ground truth; use the corresponding Y values
+                for _i in range(len(X_next_point)):
+                    if X_next_point[_i] in viz_repr:
+                        Y_next_point[_i] = float(viz_scores[(viz_repr == X_next_point[_i]).nonzero()[0, 0]])
+
+            bbox_evals_next_points = [_X[2] for _X in X_next_points_return]
 
             X_next_point = X_next_point.to(**tkwargs)
             Y_next_point = torch.FloatTensor(Y_next_point).unsqueeze(-1).to(**tkwargs)
