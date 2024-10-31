@@ -327,23 +327,21 @@ def run(args):
     Y_std = Y.std(dim=-2) + 1e-9
     y_train = (Y - Y_mean) / Y_std
 
-    # define matern kernel
-    matern_kernel = MaternKernel(
-        nu=2.5,
-        ard_num_dims=X_train.shape[-1],
-        lengthscale_prior=GammaPrior(3.0, 6.0),
-    )
-    matern_kernel_instruction = MaternKernel(
-        nu=2.5,
-        ard_num_dims=Y_scores.shape[-1],
-        lengthscale_prior=GammaPrior(3.0, 6.0),
-    )
+    # Get kernel hyperparameters
+    kernel_hparams = {
+        **{k: v for k, v in {"lengthscale": args.kernel_lengthscale,
+                             "lengthscale_prior_concentration": args.kernel_lengthscale_prior_concentration,
+                             "lengthscale_prior_rate": args.kernel_lengthscale_prior_rate,
+                             "outputscale": args.kernel_outputscale,
+                             "outputscale_prior_concentration": args.kernel_outputscale_prior_concentration,
+                             "outputscale_prior_rate": args.kernel_outputscale_prior_rate,
+                             "mean": args.kernel_mean,
+                             "mean_prior_mean": args.kernel_mean_prior_mean,
+                             "mean_prior_std": args.kernel_mean_prior_std}.items() if v is not None and v != -100}
+    }
 
-    covar_module = ScaleKernel(
-        base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel, instruction_kernel=matern_kernel_instruction,
-                                         latent_train=X_train.double(), instruction_train=Y_scores))
-    gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
-    gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
+    # Get GP model
+    gp_model, gp_mll, requires_optim = get_gp(X_train, y_train, Y_scores, kernel_hparams)
 
     for i in range(N_ITERATIONS):
         if round(float(model_forward_api.return_best_dev_perf()), 4) >= 1.0:
@@ -353,10 +351,10 @@ def run(args):
         print(f"X_train shape {X_train.shape}")
         print(f"y_train shape {y_train.shape}")
 
-        start_time = time.time()
-
-        fit_gpytorch_model(gp_mll)  # , options = {'maxiter':10})
-        print(f"Fitting done in {time.time() - start_time}")
+        if requires_optim:
+            start_time = time.time()
+            fit_gpytorch_model(gp_mll)  # , options = {'maxiter':10})
+            print(f"Fitting done in {time.time() - start_time}")
 
         if args.visualize_posterior:
             dataloader = DataLoader(TensorDataset(viz_repr, viz_scores), batch_size=256)
@@ -428,25 +426,9 @@ def run(args):
             viz_observed.append(
                 list(zip([str(_x.tolist()) for _x in X[-args.batch_size:]], Y[-args.batch_size:].squeeze().tolist())))
 
-        matern_kernel = MaternKernel(
-            nu=2.5,
-            ard_num_dims=X_train.shape[-1],
-            lengthscale_prior=GammaPrior(3.0, 6.0),
-        )
-        matern_kernel_instruction = MaternKernel(
-            nu=2.5,
-            ard_num_dims=Y_scores.shape[-1],
-            lengthscale_prior=GammaPrior(3.0, 6.0),
-        )
-        if args.coupled_kernel:
-            covar_module = ScaleKernel(base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel,
-                                                                        instruction_kernel=matern_kernel_instruction,
-                                                                        latent_train=X_train.double(),
-                                                                        instruction_train=Y_scores))
-        else:
-            covar_module = ScaleKernel(matern_kernel)
-        gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module)
-        gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
+        # Get GP model
+        gp_model, gp_mll, requires_optim = get_gp(X_train, y_train, Y_scores, kernel_hparams)
+
         print(f"Best value found till now: {torch.max(Y)}")
 
     if args.track_ground_truth:

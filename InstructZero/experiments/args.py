@@ -103,5 +103,32 @@ def parse_args():
     parser.add_argument(
         "--visualize_posterior", type=str, help="Path to candidates to visualize the posterior"
     )
+    self.add_argument(
+        "--kernel_lengthscale", type=float
+    )
+    self.add_argument(
+        "--kernel_lengthscale_prior_concentration", type=float, default=3.0
+    )
+    self.add_argument(
+        "--kernel_lengthscale_prior_rate", type=float, default=6.0
+    )
+    self.add_argument(
+        "--kernel_outputscale", type=float
+    )
+    self.add_argument(
+        "--kernel_outputscale_prior_concentration", type=float
+    )
+    self.add_argument(
+        "--kernel_outputscale_prior_rate", type=float
+    )
+    self.add_argument(
+        "--kernel_mean", type=float
+    )
+    self.add_argument(
+        "--kernel_mean_prior_mean", type=float
+    )
+    self.add_argument(
+        "--kernel_mean_prior_std", type=float
+    )
     args = parser.parse_args()
     return args

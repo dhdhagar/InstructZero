@@ -7,6 +7,12 @@ import math
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 
+from gpytorch.kernels import ScaleKernel, MaternKernel
+from gpytorch.priors import GammaPrior, NormalPrior
+from instruction_coupled_kernel import *
+from gpytorch.mlls import ExactMarginalLogLikelihood
+from botorch.models import SingleTaskGP
+
 TASKS = [
     'antonyms', 'cause_and_effect', 'common_concept', 'diff', 'first_word_letter',
     'informal_to_formal', 'larger_animal', 'letters_list', 'taxonomy_animal', 'negation',
@@ -169,3 +175,72 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
         ani.save(path.replace(".json", ".gif"), writer="pillow")  # imagemagick
     else:
         plt.savefig(path.replace(".json", ".png"), bbox_inches="tight")
+
+def get_gp(X_train, y_train, Y_scores, kernel_hparams):
+    # define matern kernel
+    matern_kernel = MaternKernel(
+        nu=2.5,
+        ard_num_dims=X_train.shape[-1],
+        **{k: v for k, v in {"lengthscale_prior": GammaPrior(
+            kernel_hparams.get('lengthscale_prior_concentration'),
+            kernel_hparams.get('lengthscale_prior_rate')) if (kernel_hparams.get(
+            'lengthscale_prior_concentration') is not None and kernel_hparams.get(
+            'lengthscale_prior_rate') is not None) else None}.items() if
+           v is not None}
+    )
+    matern_kernel_instruction = MaternKernel(
+        nu=2.5,
+        ard_num_dims=Y_scores.shape[-1],
+        **{k: v for k, v in {"lengthscale_prior": GammaPrior(
+            kernel_hparams.get('lengthscale_prior_concentration'),
+            kernel_hparams.get('lengthscale_prior_rate')) if (kernel_hparams.get(
+            'lengthscale_prior_concentration') is not None and kernel_hparams.get(
+            'lengthscale_prior_rate') is not None) else None}.items() if
+           v is not None}
+    )
+
+    covar_module = ScaleKernel(
+        base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel, instruction_kernel=matern_kernel_instruction,
+                                         latent_train=X_train.double(), instruction_train=Y_scores),
+        **{k: v for k, v in {"outputscale_prior": GammaPrior(
+            kernel_hparams.get('outputscale_prior_concentration'),
+            kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
+            'outputscale_prior_concentration') is not None and kernel_hparams.get(
+            'outputscale_prior_rate') is not None) else None}.items() if
+           v is not None}
+    )
+    gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module,
+                            **{k: v for k, v in {"mean_module": ConstantMean(
+                                constant_prior=NormalPrior(
+                                    kernel_hparams.get('mean_prior_mean'),
+                                    kernel_hparams.get('mean_prior_std')
+                                )
+                            ) if (kernel_hparams.get('mean_prior_mean') is not None and
+                                  kernel_hparams.get('mean_prior_std') is not None) else None}.items() if
+                               v is not None})
+
+    if kernel_hparams.get("mean", None) is not None:
+        # Set to the constant value and don't optimize
+        gp_model.mean_module.constant = kernel_hparams["mean"]
+        gp_model.mean_module.constant.requires_grad_(False)
+    if kernel_hparams.get("lengthscale", None) is not None:
+        # Set to the constant value and don't optimize
+        gp_model.covar_module.base_kernel.lengthscale = kernel_hparams["lengthscale"]
+        gp_model.covar_module.base_kernel.raw_lengthscale.requires_grad_(False)
+    if kernel_hparams.get("outputscale", None) is not None:
+        # Set to the constant value and don't optimize
+        gp_model.covar_module.outputscale = kernel_hparams["outputscale"]
+        gp_model.covar_module.raw_outputscale.requires_grad_(False)
+
+    requires_optim = False
+    for name, param in gp_model.named_parameters():
+        if param.requires_grad:
+            requires_optim = True
+            # print(f"Requires optim: {(name, param)}")
+            break
+
+    gp_mll = None
+    if requires_optim:
+        gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
+
+    return gp_model, gp_mll, requires_optim
