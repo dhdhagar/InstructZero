@@ -9,7 +9,7 @@ from automatic_prompt_engineer import evaluate, config, template, data
 import os
 import re
 import json
-from misc import get_test_conf, get_conf, plot_posterior
+from misc import get_test_conf, get_conf, plot_posterior, get_gp
 
 from torch.quasirandom import SobolEngine
 from torch.utils.data import DataLoader, TensorDataset
