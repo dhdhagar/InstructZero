@@ -413,7 +413,8 @@ def run(args):
         y_train = (Y - Y_mean) / Y_std
 
         if args.visualize_posterior:
-            viz_observed.append(list(zip([str(_x.tolist()) for _x in X], Y.squeeze().tolist())))
+            viz_observed.append(
+                list(zip([str(_x.tolist()) for _x in X[-args.batch_size:]], Y[-args.batch_size:].squeeze().tolist())))
 
         matern_kernel = MaternKernel(
             nu=2.5,
