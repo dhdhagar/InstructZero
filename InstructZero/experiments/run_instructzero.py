@@ -317,7 +317,9 @@ def run(args):
 
     # standardization Y (no standardization for X)
     X_train = X
-    y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
+    Y_mean = Y.mean(dim=-2)
+    Y_std = Y.std(dim=-2) + 1e-9
+    y_train = (Y - Y_mean) / Y_std
 
     # define matern kernel
     matern_kernel = MaternKernel(
@@ -357,11 +359,12 @@ def run(args):
                 posterior = gp_model.posterior(_x.to(**tkwargs))
                 with torch.no_grad():
                     f_vals.append(torch.stack(
-                        (_y.to(**tkwargs).squeeze(), posterior.mean.squeeze(), posterior.variance.sqrt().squeeze()), dim=-1))
+                        (_y.to(**tkwargs).squeeze(), posterior.mean.squeeze() * Y_std + Y_mean,
+                         (posterior.variance * Y_std ** 2).sqrt().squeeze()), dim=-1))
             f_vals = torch.cat(f_vals, dim=0).tolist()
             posterior_vals[i] = f_vals
             if len(viz_observed) == 0:
-                viz_observed.append(list(zip(X_train, y_train.squeeze().tolist())))  # add warmstart observations
+                viz_observed.append(list(zip(X, Y.squeeze().tolist())))  # add warmstart observations
 
         EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
 
@@ -404,10 +407,12 @@ def run(args):
 
         # standardization Y
         X_train = X.clone()
-        y_train = (Y - Y.mean(dim=-2)) / (Y.std(dim=-2) + 1e-9)
+        Y_mean = Y.mean(dim=-2)
+        Y_std = Y.std(dim=-2) + 1e-9
+        y_train = (Y - Y_mean) / Y_std
 
         if args.visualize_posterior:
-            viz_observed.append(list(zip(X_train, y_train.squeeze().tolist())))
+            viz_observed.append(list(zip(X, Y.squeeze().tolist())))
 
         matern_kernel = MaternKernel(
             nu=2.5,
@@ -432,9 +437,9 @@ def run(args):
 
     if args.track_ground_truth:
         # Filter and save only unique X_train and corresponding to Y_train to f"{OUT_DIR}/ground_truth.pt"
-        X_train_unique, indices = torch.unique(X_train, return_inverse=True, dim=0)
-        y_train_unique = y_train[indices]
-        torch.save((X_train_unique, y_train_unique), f"{OUT_DIR}/ground_truth_seed-{args.seed}.pt")
+        X_unique, indices = torch.unique(X, return_inverse=True, dim=0)
+        Y_unique = Y[indices]
+        torch.save((X_unique, Y_unique), f"{OUT_DIR}/ground_truth_seed-{args.seed}.pt")
         print(f"Saved {len(X_train_unique)} unique ground truth (x,y) pairs to {OUT_DIR}/ground_truth.pt")
 
     if args.visualize_posterior:
