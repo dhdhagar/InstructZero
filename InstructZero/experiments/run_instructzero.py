@@ -364,7 +364,7 @@ def run(args):
             f_vals = torch.cat(f_vals, dim=0).tolist()
             posterior_vals[i] = f_vals
             if len(viz_observed) == 0:
-                viz_observed.append(list(zip(X, Y.squeeze().tolist())))  # add warmstart observations
+                viz_observed.append(list(zip([str(_x.tolist()) for _x in X], Y.squeeze().tolist())))  # add warmstart observations
 
         EI = ExpectedImprovement(gp_model, best_f=y_train.max().item())
 
@@ -412,7 +412,7 @@ def run(args):
         y_train = (Y - Y_mean) / Y_std
 
         if args.visualize_posterior:
-            viz_observed.append(list(zip(X, Y.squeeze().tolist())))
+            viz_observed.append(list(zip([str(_x.tolist()) for _x in X], Y.squeeze().tolist())))
 
         matern_kernel = MaternKernel(
             nu=2.5,
