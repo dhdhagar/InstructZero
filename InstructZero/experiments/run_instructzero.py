@@ -311,7 +311,7 @@ def run(args):
         # Check if X is in the ground truth; use the corresponding Y values
         for _i in range(len(X)):
             if X[_i] in viz_repr:
-                Y[_i] = float(viz_scores[(viz_repr == X[_i]).nonzero()[0, 0]])
+                Y[_i] = float(viz_scores[(viz_repr == X[_i]).nonzero()[0, 0].item()])
 
     Y_scores = [_X[1].squeeze() for _X in X_return]
     bbox_evals = [_X[2] for _X in X_return]
@@ -405,7 +405,7 @@ def run(args):
                 # Check if X is in the ground truth; use the corresponding Y values
                 for _i in range(len(X_next_point)):
                     if X_next_point[_i] in viz_repr:
-                        Y_next_point[_i] = float(viz_scores[(viz_repr == X_next_point[_i]).nonzero()[0, 0]])
+                        Y_next_point[_i] = float(viz_scores[(viz_repr == X_next_point[_i]).nonzero()[0, 0].item()])
 
             bbox_evals_next_points = [_X[2] for _X in X_next_points_return]
 
