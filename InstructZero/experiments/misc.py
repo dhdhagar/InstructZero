@@ -225,10 +225,10 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
         gp_model.mean_module.constant.requires_grad_(False)
     if kernel_hparams.get("lengthscale", None) is not None:
         # Set to the constant value and don't optimize
-        gp_model.covar_module.base_latent_kernel.lengthscale = kernel_hparams["lengthscale"]
-        gp_model.covar_module.base_latent_kernel.raw_lengthscale.requires_grad_(False)
-        gp_model.covar_module.base_instruction_kernel.lengthscale = kernel_hparams["lengthscale"]
-        gp_model.covar_module.basbase_instruction_kernele_kernel.raw_lengthscale.requires_grad_(False)
+        gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale = kernel_hparams["lengthscale"]
+        gp_model.covar_module.base_kernel.base_latent_kernel.raw_lengthscale.requires_grad_(False)
+        gp_model.covar_module.base_kernel.base_instruction_kernel.lengthscale = kernel_hparams["lengthscale"]
+        gp_model.covar_module.base_kernel.basbase_instruction_kernel.raw_lengthscale.requires_grad_(False)
     if kernel_hparams.get("outputscale", None) is not None:
         # Set to the constant value and don't optimize
         gp_model.covar_module.outputscale = kernel_hparams["outputscale"]
