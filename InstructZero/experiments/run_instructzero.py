@@ -224,8 +224,8 @@ completes the request."""
             self.best_prompt = copy.deepcopy(tmp_prompt)
             self.best_instruction = instruction
 
-        print('Dev loss: {}. Dev perf: {}. Best dev perf: {}'.format(
-            round(float(dev_perf), 4),
+        print('Dev perf: {}. Best dev perf: {}'.format(
+            # round(float(dev_perf), 4),
             round(float(dev_perf), 4),
             round(float(self.best_dev_perf), 4)))
         print('********* Done *********')
