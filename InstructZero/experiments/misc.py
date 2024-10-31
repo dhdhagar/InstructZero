@@ -96,6 +96,8 @@ def set_all_seed(seed):
 
 def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_interval=300, anim_repeat=True,
                    obs_xy=None, trend_over_unobserved=True, conf_intervals=[95], top_k=None):
+    posterior_cands_x = [c[0] for c in posterior_cands]
+
     # Bayesian credible interval to std map
     conf_to_std = {
         95: 1.96,
@@ -119,7 +121,7 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
         _obs_xy_in_viz = []
         for xy in _obs_xy:
             try:
-                _obs_xy_in_viz.append((posterior_cands.index(xy[0]), xy[1]))
+                _obs_xy_in_viz.append((posterior_cands_x.index(xy[0]), xy[1]))
             except:
                 continue
         if frame == 0:
