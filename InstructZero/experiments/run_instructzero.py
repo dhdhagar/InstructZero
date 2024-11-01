@@ -356,8 +356,8 @@ def run(args):
             fit_gpytorch_model(gp_mll)  # , options = {'maxiter':10})
             print(f"Fitting done in {time.time() - start_time}")
         print(f"\nLearned GP mean = {gp_model.mean_module.constant.item()}")
-        print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale.item()}")
-        print(f"Learned GP lengthscale (instruction) = {gp_model.covar_module.base_kernel.instruction_kernel.lengthscale.item()}")
+        print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale}")
+        print(f"Learned GP lengthscale (instruction) = {gp_model.covar_module.base_kernel.instruction_kernel.lengthscale}")
         print(f"Learned GP outputscale = {gp_model.covar_module.outputscale.item()}\n")
 
         if args.visualize_posterior:
