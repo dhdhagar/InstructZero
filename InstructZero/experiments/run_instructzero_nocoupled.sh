@@ -47,6 +47,6 @@ for i in ${DATASETS[@]}; do
     --seed ${SEED} \
     --model_name ${MODEL_NAME} \
     --bbox_model ${BBOX_MODEL} \
-    --no-coupled_kernel \
+    --coupled_kernel "none" \
     --out_file ${OUT_FILE}
 done
