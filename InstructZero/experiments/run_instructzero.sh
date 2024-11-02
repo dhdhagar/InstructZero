@@ -7,7 +7,7 @@ MODEL_NAME='vicuna'
 # model_dir='WizardLM/WizardLM-13B-V1.1'
 #model_dir='WizardLMTeam/WizardLM-13B-V1.2'
 #MODEL_NAME='wizardlm'
-export TRANSFORMERS_CACHE=./transformers_cache
+export TRANSFORMERS_CACHE=/work/dagarwal_umass_edu/HF_HOME/hub
 
 DATASETS=(informal_to_formal odd_one_out second_word_letter synonyms word_sorting letters_list)
 
