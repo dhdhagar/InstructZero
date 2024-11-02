@@ -19,6 +19,7 @@ from botorch import fit_gpytorch_model
 from botorch.acquisition.analytic import ExpectedImprovement
 from gpytorch.kernels import ScaleKernel, MaternKernel
 from gpytorch.priors import GammaPrior
+from sentence_transformers import SentenceTransformer
 from instruction_coupled_kernel import *
 import time
 
@@ -171,7 +172,8 @@ completes the request."""
                 "temperature": self.args.temperature,
                 "top_p": 0.9
             }
-        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=512, **decoding_kwargs)
+        outputs = self.model.generate(inputs_embeds=input_embed, max_new_tokens=self.args.max_new_tokens,
+                                      **decoding_kwargs)
         instruction = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # postprocess instruction
         # instruction[0] = 'The instruction was to ' + instruction[0]
@@ -230,7 +232,7 @@ completes the request."""
             round(float(self.best_dev_perf), 4)))
         print('********* Done *********')
 
-        return dev_perf, instruction_score, model_outputs
+        return dev_perf, instruction_score, model_outputs, instruction
 
     def return_best_prompt(self):
         return self.best_instruction
@@ -263,6 +265,13 @@ def run(args):
         with open(args.bbox_cache, 'r') as fh:
             BBOX_CACHE = json.load(fh)
         print(f"Loaded {len(BBOX_CACHE)} bbox evaluations from cache")
+
+    embed_model = None
+    if args.coupled_kernel == "instruct-embed":
+        embed_model = SentenceTransformer(args.instruct_embed_model,
+                                          trust_remote_code=True,
+                                          # token=args.hf_access_token,
+                                          device=tkwargs['device'])
 
     # Get size of the induce data
     induce_data_size = len(induce_data[0])
@@ -313,12 +322,15 @@ def run(args):
             if X[_i] in viz_repr:
                 Y[_i] = float(viz_scores[(viz_repr == X[_i]).nonzero()[0, 0].item()])
 
-    Y_scores = [_X[1].squeeze() for _X in X_return]
+    Y_scores = get_coupled_kernel_data(X_return,
+                                       mode=args.coupled_kernel,
+                                       embed_model=embed_model,
+                                       device=tkwargs["device"])
     bbox_evals = [_X[2] for _X in X_return]
 
     X = X.to(**tkwargs)
     Y = torch.FloatTensor(Y).unsqueeze(-1).to(**tkwargs)
-    Y_scores = torch.FloatTensor(np.array(Y_scores)).to(**tkwargs)
+    Y_scores = Y_scores.to(**tkwargs)
     print(f"Best initial point: {Y.max().item():.3f}")
 
     # standardization Y (no standardization for X)
@@ -332,12 +344,16 @@ def run(args):
         **{k: v for k, v in {"lengthscale": args.kernel_lengthscale,
                              "lengthscale_prior_concentration": args.kernel_lengthscale_prior_concentration,
                              "lengthscale_prior_rate": args.kernel_lengthscale_prior_rate,
+                             "lengthscale_instr": args.kernel_lengthscale_instr,
+                             "lengthscale_prior_concentration_instr": args.kernel_lengthscale_prior_concentration_instr,
+                             "lengthscale_prior_rate_instr": args.kernel_lengthscale_prior_rate_instr,
                              "outputscale": args.kernel_outputscale,
                              "outputscale_prior_concentration": args.kernel_outputscale_prior_concentration,
                              "outputscale_prior_rate": args.kernel_outputscale_prior_rate,
                              "mean": args.kernel_mean,
                              "mean_prior_mean": args.kernel_mean_prior_mean,
-                             "mean_prior_std": args.kernel_mean_prior_std}.items() if v is not None and v != -100}
+                             "mean_prior_std": args.kernel_mean_prior_std}.items() if v is not None and v != -100},
+        "coupled_kernel": args.coupled_kernel
     }
 
     # Get GP model
@@ -357,7 +373,8 @@ def run(args):
             print(f"Fitting done in {time.time() - start_time}")
         print(f"\nLearned GP mean = {gp_model.mean_module.constant.item()}")
         print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale}")
-        print(f"Learned GP lengthscale (instruction) = {gp_model.covar_module.base_kernel.instruction_kernel.lengthscale}")
+        print(
+            f"Learned GP lengthscale (instruction) = {gp_model.covar_module.base_kernel.instruction_kernel.lengthscale}")
         print(f"Learned GP outputscale = {gp_model.covar_module.outputscale.item()}\n")
 
         if args.visualize_posterior:
@@ -402,7 +419,11 @@ def run(args):
 
             X_next_points_return = [model_forward_api.eval(X_next_point)]
             Y_next_point = [_X[0] for _X in X_next_points_return]
-            Y_scores_next_points = [_X[1].squeeze() for _X in X_next_points_return]
+            Y_scores_next_points = get_coupled_kernel_data(X_next_points_return,
+                                                           mode=args.coupled_kernel,
+                                                           embed_model=embed_model,
+                                                           device=tkwargs["device"])
+
             if args.visualize_posterior:
                 # Check if X is in the ground truth; use the corresponding Y values
                 for _i in range(len(X_next_point)):
@@ -413,7 +434,7 @@ def run(args):
 
             X_next_point = X_next_point.to(**tkwargs)
             Y_next_point = torch.FloatTensor(Y_next_point).unsqueeze(-1).to(**tkwargs)
-            Y_scores_next_points = torch.FloatTensor(np.array(Y_scores_next_points)).to(**tkwargs)
+            Y_scores_next_points = Y_scores_next_points.to(**tkwargs)
 
             X = torch.cat([X, X_next_point])
             Y = torch.cat([Y, Y_next_point])

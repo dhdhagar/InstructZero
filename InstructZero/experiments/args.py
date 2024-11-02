@@ -1,5 +1,6 @@
 import argparse
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="InstructZero pipeline")
     parser.add_argument(
@@ -36,31 +37,31 @@ def parse_args():
         "--seed",
         type=int,
         default=0,
-        help="Set the seed."    
+        help="Set the seed."
     )
     parser.add_argument(
         "--alpha",
         type=float,
         default=1.0,
-        help="Set the alpha if the initialization of the projection matrix A is std."    
+        help="Set the alpha if the initialization of the projection matrix A is std."
     )
     parser.add_argument(
         "--beta",
         type=float,
         default=3.0,
-        help="Set the beta if the initialization of the projection matrix A is std."    
+        help="Set the beta if the initialization of the projection matrix A is std."
     )
     parser.add_argument(
         "--api_model",
         type=str,
         default='chatgpt',
-        help="The black-box api model."    
+        help="The black-box api model."
     )
     parser.add_argument(
         "--model_name",
         type=str,
         default='vicuna',
-        help="The model name of the open-source LLM."    
+        help="The model name of the open-source LLM."
     )
     parser.add_argument(
         "--out_file",
@@ -74,7 +75,10 @@ def parse_args():
         "--random_prompt", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument(
-        "--coupled_kernel", action=argparse.BooleanOptionalAction, default=True
+        "--coupled_kernel", type=str, choices=['none', 'scores', 'instruct-string', 'instruct-embed'], default='scores'
+    )
+    parser.add_argument(
+        "--instruct_embed_model", type=str, default='Alibaba-NLP/gte-Qwen2-1.5B-instruct'
     )
     parser.add_argument(
         "--do_sample", action=argparse.BooleanOptionalAction, default=False
@@ -98,6 +102,9 @@ def parse_args():
         "--temperature", type=float, default=1.0
     )
     parser.add_argument(
+        "--max_new_tokens", type=int, default=512
+    )
+    parser.add_argument(
         "--track_ground_truth", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument(
@@ -111,6 +118,15 @@ def parse_args():
     )
     parser.add_argument(
         "--kernel_lengthscale_prior_rate", type=float, default=6.0
+    )
+    parser.add_argument(
+        "--kernel_lengthscale_instr", type=float
+    )
+    parser.add_argument(
+        "--kernel_lengthscale_prior_concentration_instr", type=float, default=3.0
+    )
+    parser.add_argument(
+        "--kernel_lengthscale_prior_rate_instr", type=float, default=6.0
     )
     parser.add_argument(
         "--kernel_outputscale", type=float

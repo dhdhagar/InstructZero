@@ -176,6 +176,7 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
     else:
         plt.savefig(path.replace(".json", ".png"), bbox_inches="tight")
 
+
 def get_gp(X_train, y_train, Y_scores, kernel_hparams):
     # define matern kernel
     matern_kernel = MaternKernel(
@@ -199,16 +200,30 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
            v is not None}
     )
 
-    covar_module = ScaleKernel(
-        base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel, instruction_kernel=matern_kernel_instruction,
-                                         latent_train=X_train.double(), instruction_train=Y_scores),
-        **{k: v for k, v in {"outputscale_prior": GammaPrior(
-            kernel_hparams.get('outputscale_prior_concentration'),
-            kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
-            'outputscale_prior_concentration') is not None and kernel_hparams.get(
-            'outputscale_prior_rate') is not None) else None}.items() if
-           v is not None}
-    )
+    if kernel_hparams.get("coupled_kernel", "scores") != "none":
+        covar_module = ScaleKernel(
+            base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel,
+                                             instruction_kernel=matern_kernel_instruction,
+                                             latent_train=X_train.double(),
+                                             instruction_train=Y_scores),  # Default: per ex. dev scores for each cand
+            **{k: v for k, v in {"outputscale_prior": GammaPrior(
+                kernel_hparams.get('outputscale_prior_concentration'),
+                kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
+                'outputscale_prior_concentration') is not None and kernel_hparams.get(
+                'outputscale_prior_rate') is not None) else None}.items() if
+               v is not None}
+        )
+    else:
+        # Standard kernel
+        covar_module = ScaleKernel(
+            base_kernel=matern_kernel,
+            **{k: v for k, v in {"outputscale_prior": GammaPrior(
+                kernel_hparams.get('outputscale_prior_concentration'),
+                kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
+                'outputscale_prior_concentration') is not None and kernel_hparams.get(
+                'outputscale_prior_rate') is not None) else None}.items() if
+               v is not None}
+        )
     gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module,
                             **{k: v for k, v in {"mean_module": ConstantMean(
                                 constant_prior=NormalPrior(
@@ -246,3 +261,28 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
         gp_mll = ExactMarginalLogLikelihood(gp_model.likelihood, gp_model)
 
     return gp_model, gp_mll, requires_optim
+
+
+def get_coupled_kernel_data(X_return, mode, embed_model=None, device="cuda"):
+    if mode == "scores":
+        return torch.FloatTensor(np.array([_X[1].squeeze() for _X in X_return]))
+    elif mode == "instruct-embed":
+        assert len(X_return[0][3]) == 1
+        assert embed_model is not None
+        instructs = [_X[3][0] for _X in X_return]
+        # Get the embeddings
+        instruct_embeds = embed_model.encode(instructs,
+                                             prompt=f"""Instruct: Given the following instruction text, \
+retrieve only similar instruction texts.\nInstruction: """,
+                                             convert_to_tensor=True,
+                                             normalize_embeddings=True,
+                                             show_progress_bar=False,
+                                             batch_size=16,
+                                             device=device)
+        return instruct_embeds
+    elif mode == "instruct-string":
+        # String kernel
+        raise NotImplementedError
+    else:
+        # "none"
+        return torch.zeros((len(X_return), 1))
