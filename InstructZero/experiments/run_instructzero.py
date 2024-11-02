@@ -73,27 +73,31 @@ class LMForwardAPI:
         self.hidden_size = self.init_prompt.shape[-1]
         print('Shape of initial prompt embedding: {}'.format(self.init_prompt.shape))
 
+        if self.ops_model == 'vicuna':
+            self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
+The assistant gives helpful, detailed, and polite answers to the user's questions."""
+            self.role = ['USER:', 'ASSISTANT:']
+        elif self.ops_model == 'wizardlm':
+            self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
+The assistant gives helpful, detailed, and polite answers to the user's questions."""
+            self.role = ['USER:', 'ASSISTANT:']
+        elif self.ops_model == 'alpaca':
+            self.system_prompt = """Below is an instruction that describes a task. Write a response that appropriately \
+completes the request."""
+            self.role = ["### Instruction:", "### Response:"]
+        else:
+            raise NotImplementedError
+
         # self.init_prompt = self.init_prompt.reshape(self.n_prompt_tokens * self.hidden_size)
         # Create the template for Vicuna and WizardLM
-        self.count = 0
-        self.linear = None
-        if random_proj != "none":
-            self.linear = torch.nn.Linear(self.intrinsic_dim, self.n_prompt_tokens * self.hidden_size, bias=False)
-            if self.ops_model == 'vicuna':
-                self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
-    The assistant gives helpful, detailed, and polite answers to the user's questions."""
-                self.role = ['USER:', 'ASSISTANT:']
-            elif self.ops_model == 'wizardlm':
-                self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
-    The assistant gives helpful, detailed, and polite answers to the user's questions."""
-                self.role = ['USER:', 'ASSISTANT:']
-            elif self.ops_model == 'alpaca':
-                self.system_prompt = """Below is an instruction that describes a task. Write a response that appropriately \
-    completes the request."""
-                self.role = ["### Instruction:", "### Response:"]
-            else:
-                raise NotImplementedError
 
+        self.count = 0
+        if random_proj == "none":
+            self.linear = None
+            self.intrinsic_dim = self.hidden_size
+            print("Setting intrinsic dim to hidden size")
+        else:
+            self.linear = torch.nn.Linear(self.intrinsic_dim, self.n_prompt_tokens * self.hidden_size, bias=False)
             if random_proj == 'normal':
                 # calculate std for normal distribution
                 if model_name in ['wizardlm', 'vicuna', 'openchat']:
@@ -109,9 +113,6 @@ class LMForwardAPI:
                 torch.nn.init.normal_(self.linear.weight, -1, 1)
             elif random_proj == 'uniform':
                 torch.nn.init.uniform_(self.linear.weight, -1, 1)
-        else:
-            self.intrinsic_dim = self.hidden_size
-            print("Setting intrinsic dim to hidden size")
 
         ## eval preparation
         self.conf = config.update_config(conf, base_conf)
