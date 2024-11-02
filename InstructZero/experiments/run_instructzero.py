@@ -36,9 +36,8 @@ class LMForwardAPI:
                  prompt_gen_data=None, random_proj=None, intrinsic_dim=None, n_prompt_tokens=None, few_shot_data=None,
                  HF_cache_dir=None, args=None, bbox_cache=None):
         p = torch.ones(10)
-
+        self.intrinsic_dim = intrinsic_dim
         self.bbox_cache = bbox_cache if bbox_cache is not None else {}
-
         self.args = args
         kwargs = {
             'torch_dtype': torch.float16,
@@ -77,37 +76,42 @@ class LMForwardAPI:
         # self.init_prompt = self.init_prompt.reshape(self.n_prompt_tokens * self.hidden_size)
         # Create the template for Vicuna and WizardLM
         self.count = 0
-        self.linear = torch.nn.Linear(intrinsic_dim, self.n_prompt_tokens * self.hidden_size, bias=False)
-        if self.ops_model == 'vicuna':
-            self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
-The assistant gives helpful, detailed, and polite answers to the user's questions."""
-            self.role = ['USER:', 'ASSISTANT:']
-        elif self.ops_model == 'wizardlm':
-            self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
-The assistant gives helpful, detailed, and polite answers to the user's questions."""
-            self.role = ['USER:', 'ASSISTANT:']
-        elif self.ops_model == 'alpaca':
-            self.system_prompt = """Below is an instruction that describes a task. Write a response that appropriately \
-completes the request."""
-            self.role = ["### Instruction:", "### Response:"]
-        else:
-            raise NotImplementedError
-
-        if random_proj == 'normal':
-            # calculate std for normal distribution
-            if model_name in ['wizardlm', 'vicuna', 'openchat']:
-                print('Get the embedding firstly to avoid issues')
+        self.linear = None
+        if random_proj != "none":
+            self.linear = torch.nn.Linear(self.intrinsic_dim, self.n_prompt_tokens * self.hidden_size, bias=False)
+            if self.ops_model == 'vicuna':
+                self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
+    The assistant gives helpful, detailed, and polite answers to the user's questions."""
+                self.role = ['USER:', 'ASSISTANT:']
+            elif self.ops_model == 'wizardlm':
+                self.system_prompt = """A chat between a curious user and an artificial intelligence assistant. \
+    The assistant gives helpful, detailed, and polite answers to the user's questions."""
+                self.role = ['USER:', 'ASSISTANT:']
+            elif self.ops_model == 'alpaca':
+                self.system_prompt = """Below is an instruction that describes a task. Write a response that appropriately \
+    completes the request."""
+                self.role = ["### Instruction:", "### Response:"]
             else:
                 raise NotImplementedError
-            mu_hat = self.embedding.reshape(-1).mean().item()
-            std_hat = self.embedding.reshape(-1).std().item()
-            mu = 0.0
-            std = args.alpha * std_hat / (np.sqrt(intrinsic_dim) * args.sigma)
 
-            print('[Embedding] mu: {} | std: {} [RandProj]  mu: {} | std: {}'.format(mu_hat, std_hat, mu, std))
-            torch.nn.init.normal_(self.linear.weight, -1, 1)
-        elif random_proj == 'uniform':
-            torch.nn.init.uniform_(self.linear.weight, -1, 1)
+            if random_proj == 'normal':
+                # calculate std for normal distribution
+                if model_name in ['wizardlm', 'vicuna', 'openchat']:
+                    print('Get the embedding firstly to avoid issues')
+                else:
+                    raise NotImplementedError
+                mu_hat = self.embedding.reshape(-1).mean().item()
+                std_hat = self.embedding.reshape(-1).std().item()
+                mu = 0.0
+                std = args.alpha * std_hat / (np.sqrt(self.intrinsic_dim) * args.sigma)
+
+                print('[Embedding] mu: {} | std: {} [RandProj]  mu: {} | std: {}'.format(mu_hat, std_hat, mu, std))
+                torch.nn.init.normal_(self.linear.weight, -1, 1)
+            elif random_proj == 'uniform':
+                torch.nn.init.uniform_(self.linear.weight, -1, 1)
+        else:
+            self.intrinsic_dim = self.hidden_size
+            print("Setting intrinsic dim to hidden size")
 
         ## eval preparation
         self.conf = config.update_config(conf, base_conf)
@@ -141,18 +145,21 @@ completes the request."""
             pe_list = []
             for pe in prompt_embedding:
                 z = torch.tensor(pe).type(torch.float32)  # z
-                z = self.linear(z)  # Az
+                if self.linear is not None:
+                    z = self.linear(z)  # Az
             prompt_embedding = torch.cat(pe_list)  # num_workers*bsz x prompt_len x dim
 
         elif isinstance(prompt_embedding, np.ndarray):  # single query or None
             prompt_embedding = torch.tensor(prompt_embedding).type(torch.float32)  # z
-            prompt_embedding = self.linear(prompt_embedding)  # Az
+            if self.linear is not None:
+                prompt_embedding = self.linear(prompt_embedding)  # Az
             # if self.init_prompt is not None:
             #     prompt_embedding = prompt_embedding + self.init_prompt  # Az + p_0
             prompt_embedding = prompt_embedding.reshape(1, self.n_prompt_tokens, -1)
         elif isinstance(prompt_embedding, torch.Tensor):
             prompt_embedding = prompt_embedding.type(torch.float32)
-            prompt_embedding = self.linear(prompt_embedding)  # Az
+            if self.linear is not None:
+                prompt_embedding = self.linear(prompt_embedding)  # Az
             prompt_embedding = prompt_embedding.reshape(1, self.n_prompt_tokens, -1)
         else:
             raise ValueError(
@@ -307,12 +314,12 @@ def run(args):
 
     model_forward_api = LMForwardAPI(model_name=args.model_name, eval_data=eval_data, init_prompt=init_prompt,
                                      init_qa=init_qa, conf=conf, base_conf=base_conf, prompt_gen_data=prompt_gen_data,
-                                     random_proj=random_proj,
-                                     intrinsic_dim=intrinsic_dim, n_prompt_tokens=n_prompt_tokens,
-                                     HF_cache_dir=HF_cache_dir, args=args, bbox_cache=BBOX_CACHE)
+                                     random_proj=random_proj, intrinsic_dim=intrinsic_dim,
+                                     n_prompt_tokens=n_prompt_tokens, HF_cache_dir=HF_cache_dir, args=args,
+                                     bbox_cache=BBOX_CACHE)
 
     # start bayesian opt
-    sobol = SobolEngine(dimension=intrinsic_dim, scramble=True, seed=args.seed)
+    sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)
     X = sobol.draw(N_INIT)
     X_return = [model_forward_api.eval(x) for x in X]
     Y = [_X[0] for _X in X_return]

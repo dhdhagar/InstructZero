@@ -13,6 +13,7 @@ def parse_args():
         "--random_proj",
         type=str,
         default="uniform",
+        choices=["uniform", "normal", "none"],
         help="The initialization of the projection matrix A."
     )
     parser.add_argument(
