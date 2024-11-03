@@ -70,6 +70,9 @@ def parse_args():
         help="The output results filename prefix"
     )
     parser.add_argument(
+        "--device", type=str, default="cuda"
+    )
+    parser.add_argument(
         "--no_prompt", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument(
