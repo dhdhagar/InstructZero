@@ -104,7 +104,7 @@ that are similar to it in meaning.\n\nWord: """
         self.scores_best_mean_var = []  # per soft prompt
         self.unique_guesses = set([x[0] for x in warmstart])
         self.repeats = 0
-        self.best_warmstart = sorted(lambda x: -x[1], self.warmstart)[0]
+        self.best_warmstart = sorted(self.warmstart, key=lambda x: -x[1])[0]
         self.best_so_far = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
         self.last_best = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
         self.opt_found = False
@@ -143,7 +143,7 @@ that are similar to it in meaning.\n\nWord: """
             scores_var = np.var(scores)
             iter_scores_best_mean_var.append((scores_best, scores_mean, scores_var))
 
-            guesses_scores = sorted(lambda x: x[1], list(zip(guesses, scores)))
+            guesses_scores = sorted(list(zip(guesses, scores)), key=lambda x: x[1])
             iter_guesses_scores.append(guesses_scores)
             iter_last_best.append(guesses_scores[-1])
 
@@ -158,7 +158,7 @@ that are similar to it in meaning.\n\nWord: """
                 self.opt_soft_prompt = self.soft_prompts[-1][i]
 
         self.guesses.append(iter_guesses_scores)
-        self.last_best = sorted(lambda x: x[1], iter_last_best)[-1]
+        self.last_best = sorted(iter_last_best, key=lambda x: x[1])[-1]
         self.scores_best_mean_var.append(iter_scores_best_mean_var)
 
         return iter_scores_best_mean_var, [[__gs[1] for __gs in _gs] for _gs in iter_guesses_scores]
