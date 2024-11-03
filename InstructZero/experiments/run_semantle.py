@@ -47,9 +47,7 @@ class LMForwardAPI:
             torch_dtype=dtype,
             token=args.hf_access_token,
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            HF_cache_dir,
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.decoding_kwargs = {
             "num_return_sequences": self.args.num_return_sequences,
             "top_p": 0.9,
