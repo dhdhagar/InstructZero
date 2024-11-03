@@ -116,7 +116,7 @@ that are similar to it in meaning.\n\nWord: """
             if self.linear is not None:
                 soft_prompts = self.linear(soft_prompts)
             soft_prompts = soft_prompts.view(-1, self.n_prompt_tokens, self.hidden_size)
-            input_embed = torch.cat((soft_prompts, self.text_prompt_embed), dim=1)
+            input_embed = torch.cat((soft_prompts, self.text_prompt_embed.repeat(soft_prompts.shape[0], 1, 1)), dim=1)
         else:
             input_embed = self.text_prompt_embed
 
@@ -274,7 +274,8 @@ def run(args):
 
     # Get warmstart points
     sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
-    X = sobol.draw(args.n_init).to(**tkwargs)
+    with torch.no_grad():
+        X = sobol.draw(args.n_init).to(**tkwargs)
     X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True)
 
     # Get kernel hyperparameters
@@ -338,7 +339,8 @@ def run(args):
         # print(f"Time for CMA-ES {time.time() - start_time}")
         if args.random_prompt:
             # Sample a random soft prompt instead of using the BO proposal
-            X_next = sobol.draw(len(best_vals))
+            with torch.no_grad():
+                X_next = sobol.draw(len(best_vals))
         else:
             X_next = torch.from_numpy(best_points[np.argsort(-1 * np.array(best_vals))]).float()
         X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False)
