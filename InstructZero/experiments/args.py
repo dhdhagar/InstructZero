@@ -153,6 +153,9 @@ def parse_args():
     parser.add_argument(
         "--guesses_per_prompt", type=int, default=1
     )
+    parser.add_argument(
+        "--hf_access_token", type=str
+    )
 
     args = parser.parse_args()
     return args

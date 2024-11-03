@@ -394,4 +394,7 @@ if __name__ == '__main__':
 
     with open(res_fpath, 'w') as fh:
         fh.write(json.dumps(results, indent=2))
+
     print(f"Saved results to: {res_fpath}\n\n")
+
+    breakpoint()
