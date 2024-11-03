@@ -59,7 +59,7 @@ class LMForwardAPI:
         self.bbox_model = SentenceTransformer(bbox_model_name,
                                               trust_remote_code=True,
                                               token=args.hf_access_token,
-                                              torch_dtype=dtype,
+                                              model_kwargs={"torch_dtype": dtype},
                                               device=args.device)
         self.bbox_prompt = "What is a %s?"
         self.bbox_instruction = f"""Instruct: Given the following English-language word, retrieve only those words \
