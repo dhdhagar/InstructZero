@@ -106,6 +106,9 @@ def parse_args():
         "--max_new_tokens", type=int, default=512
     )
     parser.add_argument(
+        "--num_return_sequences", type=int, default=1
+    )
+    parser.add_argument(
         "--track_ground_truth", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument(
@@ -147,5 +150,9 @@ def parse_args():
     parser.add_argument(
         "--kernel_mean_prior_std", type=float
     )
+    parser.add_argument(
+        "--guesses_per_prompt", type=int, default=1
+    )
+
     args = parser.parse_args()
     return args

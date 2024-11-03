@@ -35,7 +35,6 @@ class LMForwardAPI:
     def __init__(self, model_name=None, eval_data=None, init_prompt=None, init_qa=None, conf=None, base_conf=None,
                  prompt_gen_data=None, random_proj=None, intrinsic_dim=None, n_prompt_tokens=None, few_shot_data=None,
                  HF_cache_dir=None, args=None, bbox_cache=None):
-        p = torch.ones(10)
         self.intrinsic_dim = intrinsic_dim
         self.bbox_cache = bbox_cache if bbox_cache is not None else {}
         self.args = args

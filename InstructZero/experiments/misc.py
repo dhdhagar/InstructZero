@@ -12,6 +12,8 @@ from gpytorch.priors import GammaPrior, NormalPrior
 from instruction_coupled_kernel import *
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.models import SingleTaskGP
+from botorch.models.transforms.outcome import Standardize
+from botorch.models.transforms.input import Normalize
 
 TASKS = [
     'antonyms', 'cause_and_effect', 'common_concept', 'diff', 'first_word_letter',
@@ -177,7 +179,32 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
         plt.savefig(path.replace(".json", ".png"), bbox_inches="tight")
 
 
-def get_gp(X_train, y_train, Y_scores, kernel_hparams):
+def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
+           standardize_outputs=False, normalize_inputs=False, bounds=None, bounds_margin=1, symmetric_bounds=False):
+    # Noise
+    if type(y_train_var) is not torch.tensor:  # else: fixed noise per observation
+        if type(y_train_var) is list:
+            y_train_var = torch.tensor(y_train_var)
+        elif y_train_var == 0:  # no noise
+            y_train_var = torch.full_like(y_train_var, 1e-6)
+        elif y_train_var is not None:  # fixed noise
+            y_train_var = torch.full_like(y_train, y_train_var)
+    if y_train_var is not None:
+        y_train_var.to(y_train.dtype).to(y_train.device)
+
+    # Transforms
+    outcome_transform = Standardize(m=1) if standardize_outputs else None
+    if normalize_inputs and bounds is None:
+        # Compute bounds
+        min_bounds = torch.ones(X_train.shape[1]).to(device) * X_train.min() if symmetric_bounds else X_train.min(
+            dim=0).values
+        max_bounds = torch.ones(X_train.shape[1]).to(device) * X_train.max() if symmetric_bounds else X_train.max(
+            dim=0).values
+        assert bounds_margin >= 1
+        expansion_margin = (bounds_margin - 1) * (max_bounds - min_bounds) / 2.
+        bounds = torch.stack([min_bounds - expansion_margin, max_bounds + expansion_margin])
+    input_transform = Normalize(d=X_train.shape[-1], bounds=bounds) if normalize_inputs else None
+
     # define matern kernel
     matern_kernel = MaternKernel(
         nu=2.5,
@@ -191,7 +218,7 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
     )
     matern_kernel_instruction = MaternKernel(
         nu=2.5,
-        ard_num_dims=Y_scores.shape[-1],
+        ard_num_dims=X_struct.shape[-1],
         **{k: v for k, v in {"lengthscale_prior": GammaPrior(
             kernel_hparams.get('lengthscale_prior_concentration'),
             kernel_hparams.get('lengthscale_prior_rate')) if (kernel_hparams.get(
@@ -205,7 +232,7 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
             base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel,
                                              instruction_kernel=matern_kernel_instruction,
                                              latent_train=X_train.double(),
-                                             instruction_train=Y_scores),  # Default: per ex. dev scores for each cand
+                                             instruction_train=X_struct),  # Default: per ex. dev scores for each cand
             **{k: v for k, v in {"outputscale_prior": GammaPrior(
                 kernel_hparams.get('outputscale_prior_concentration'),
                 kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
@@ -224,7 +251,7 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
                 'outputscale_prior_rate') is not None) else None}.items() if
                v is not None}
         )
-    gp_model = SingleTaskGP(X_train, y_train, covar_module=covar_module,
+    gp_model = SingleTaskGP(X_train, y_train, train_Yvar=train_yvar, covar_module=covar_module,
                             **{k: v for k, v in {"mean_module": ConstantMean(
                                 constant_prior=NormalPrior(
                                     kernel_hparams.get('mean_prior_mean'),
@@ -232,7 +259,8 @@ def get_gp(X_train, y_train, Y_scores, kernel_hparams):
                                 )
                             ) if (kernel_hparams.get('mean_prior_mean') is not None and
                                   kernel_hparams.get('mean_prior_std') is not None) else None}.items() if
-                               v is not None})
+                               v is not None},
+                            input_transform=input_transform, outcome_transform=outcome_transform)
 
     if kernel_hparams.get("mean", None) is not None:
         # Set to the constant value and don't optimize
@@ -286,3 +314,34 @@ retrieve only similar instruction texts.\nInstruction: """,
     else:
         # "none"
         return torch.zeros((len(X_return), 1))
+
+
+def extract_json(s):
+    depth = 0
+    in_string = False
+    escape = False
+    start_idx = None
+
+    for i, char in enumerate(s):
+        if char == '"' and not escape:
+            in_string = not in_string
+
+        if not in_string:
+            if char == '{':
+                if depth == 0:
+                    start_idx = i
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0 and start_idx is not None:
+                    json_str = s[start_idx:i + 1]
+                    try:
+                        return json.loads(json_str)
+                    except json.JSONDecodeError:
+                        pass
+
+        if char == '\\' and not escape:
+            escape = True
+        else:
+            escape = False
+    return None
