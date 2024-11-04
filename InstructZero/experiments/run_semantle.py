@@ -135,7 +135,7 @@ that are similar to it in meaning.\n\nWord: """
         iter_scores_best_mean_var = []
         for i, guesses_raw in enumerate(guesses_raw_batch):
             # Get unique guesses
-            guesses = self.extract_guesses(guesses_raw)
+            guesses = self.extract_guesses(guesses_raw)[:self.args.guesses_per_prompt]
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
             self.repeats += len(self.unique_guesses) - _len_unique_guesses
@@ -180,8 +180,8 @@ that are similar to it in meaning.\n\nWord: """
         if target is None:
             return embeds.squeeze()
 
-        scores = cosine_similarity(embeds, target.unsqueeze(0))
-        return scores.squeeze().tolist()
+        scores = cosine_similarity(embeds, target.unsqueeze(0)).squeeze().tolist()
+        return scores if type(scores) is list else [scores]
 
     def create_semantle_prompt(self, examples, n_return=1, sort=True):
         system = """You are a helpful chatbot with high attention to detail who is not talkative and responds only \
