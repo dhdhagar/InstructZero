@@ -23,6 +23,7 @@ from gpytorch.priors import GammaPrior
 from sentence_transformers import SentenceTransformer
 from instruction_coupled_kernel import *
 import time
+import warnings
 
 from misc import set_all_seed, TASKS, tkwargs
 
@@ -107,6 +108,7 @@ that are similar to it in meaning.\n\nWord: """
         self.scores_best_mean_var = []  # per soft prompt
         self.unique_guesses = set([x[0] for x in warmstart])
         self.repeats = 0
+        self.generation_errors = []
         self.best_warmstart = sorted(self.warmstart, key=lambda x: -x[1])[0]
         self.best_so_far = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
         self.last_best = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
@@ -123,7 +125,8 @@ that are similar to it in meaning.\n\nWord: """
         else:
             input_embed = self.text_prompt_embed
 
-        with torch.no_grad():
+        with torch.no_grad(), warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
             outputs = self.model.generate(inputs_embeds=input_embed,
                                           max_new_tokens=self.args.max_new_tokens,
                                           **self.decoding_kwargs)
@@ -135,7 +138,8 @@ that are similar to it in meaning.\n\nWord: """
         iter_scores_best_mean_var = []
         for i, guesses_raw in enumerate(guesses_raw_batch):
             # Get unique guesses
-            guesses = self.extract_guesses(guesses_raw)[:self.args.guesses_per_prompt]
+            guesses, errors = self.extract_guesses(guesses_raw)[:self.args.guesses_per_prompt]
+            self.generation_errors.append(errors)
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
             self.repeats += len(self.unique_guesses) - _len_unique_guesses
@@ -217,13 +221,18 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
             guesses_raw = [guesses_raw]
         guesses = [guess.strip().lower() for guess in guesses_raw]
         parsed = []
-        for guess in guesses:
-            extracted = extract_json(guess)
-            words = extracted[response_key]
+        errors = 0
+        for idx, guess in enumerate(guesses):
+            try:
+                extracted = extract_json(guess)
+                words = extracted[response_key]
+            except:
+                errors.append((idx, guess))
+                continue
             if unique:
                 words = list(set(words))
             parsed.append(words)
-        return parsed if len(guesses) > 1 else parsed[0]
+        return parsed if len(guesses) > 1 else parsed[0], errors
 
 
 def evaluate_soft_prompts(X, model_forward_api, args, initial=False):

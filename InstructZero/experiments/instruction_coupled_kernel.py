@@ -48,10 +48,11 @@ class CombinedStringKernel(Kernel):
         return kernel_val
 
 
-def cma_es_concat(starting_point_for_cma, EI, tkwargs):
+def cma_es_concat(starting_point_for_cma, EI, tkwargs, silent=False):
     if starting_point_for_cma.type() == 'torch.cuda.DoubleTensor':
         starting_point_for_cma = starting_point_for_cma.detach().cpu().squeeze()
-    es = cma.CMAEvolutionStrategy(x0=starting_point_for_cma, sigma0=0.8, inopts={'bounds': [-1, 1], "popsize": 50}, )
+    es = cma.CMAEvolutionStrategy(x0=starting_point_for_cma, sigma0=0.8,
+                                  inopts={'bounds': [-1, 1], "popsize": 50, 'verb_log': 0, 'verb_disp': 0})
     iter = 1
     while not es.stop():
         iter += 1
@@ -60,9 +61,10 @@ def cma_es_concat(starting_point_for_cma, EI, tkwargs):
         with torch.no_grad():
             Y = -1 * EI(X)
         es.tell(xs, Y.cpu().numpy())  # return the result to the optimizer
-        print("current best")
-        print(f"{es.best.f}")
-        if (iter > 10):
+        if not silent:
+            print("current best")
+            print(f"{es.best.f}")
+        if iter > 10:
             break
 
     return es.best.x, -1 * es.best.f
