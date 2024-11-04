@@ -106,7 +106,7 @@ def parse_args():
         "--temperature", type=float, default=1.0
     )
     parser.add_argument(
-        "--max_new_tokens", type=int, default=512
+        "--max_new_tokens", type=int, default=1024
     )
     parser.add_argument(
         "--num_return_sequences", type=int, default=1

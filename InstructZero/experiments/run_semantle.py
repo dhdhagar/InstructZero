@@ -77,6 +77,8 @@ that are similar to it in meaning.\n\nWord: """
 
         # Get the textual prompt and embedding
         self.embeddings = self.model.get_input_embeddings().weight.clone().detach()
+        # Get the hull of the embeddings across dimensions
+        self.embeddings_hull = torch.stack([self.embeddings.min(dim=0).values, self.embeddings.max(dim=0).values])
         self.hidden_size = self.text_prompt_embed.shape[-1]
         self.text_prompt, input_ids = self.create_semantle_prompt(examples=self.warmstart,
                                                                   n_return=args.guesses_per_prompt)
@@ -120,9 +122,10 @@ that are similar to it in meaning.\n\nWord: """
         else:
             input_embed = self.text_prompt_embed
 
-        outputs = self.model.generate(inputs_embeds=input_embed,
-                                      max_new_tokens=self.args.max_new_tokens,
-                                      **self.decoding_kwargs)
+        with torch.no_grad():
+            outputs = self.model.generate(inputs_embeds=input_embed,
+                                          max_new_tokens=self.args.max_new_tokens,
+                                          **self.decoding_kwargs)
         guesses_raw_batch = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         self.guesses_raw.append(guesses_raw_batch)
 
