@@ -48,11 +48,13 @@ class CombinedStringKernel(Kernel):
         return kernel_val
 
 
-def cma_es_concat(starting_point_for_cma, EI, tkwargs, silent=False):
+def cma_es_concat(starting_point_for_cma, EI, tkwargs, bounds=None, silent=False):
     if starting_point_for_cma.type() == 'torch.cuda.DoubleTensor':
         starting_point_for_cma = starting_point_for_cma.detach().cpu().squeeze()
     es = cma.CMAEvolutionStrategy(x0=starting_point_for_cma, sigma0=0.8,
-                                  inopts={'bounds': [-1, 1], "popsize": 50, 'verb_log': 0, 'verb_disp': 0})
+                                  inopts={
+                                      'bounds': [-1, 1] if bounds is None else [bounds[0].tolist(), bounds[1].tolist()],
+                                      "popsize": 50, 'verb_log': 0, 'verb_disp': 0})
     iter = 1
     while not es.stop():
         iter += 1

@@ -200,12 +200,10 @@ def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
     outcome_transform = Standardize(m=1) if standardize_outputs else None
     if normalize_inputs and bounds is None:
         # Compute bounds
-        # min_bounds = torch.ones(X_train.shape[1]).to(device) * X_train.min() if symmetric_bounds else X_train.min(
-        #     dim=0).values
-        # max_bounds = torch.ones(X_train.shape[1]).to(device) * X_train.max() if symmetric_bounds else X_train.max(
-        #     dim=0).values
-        min_bounds = torch.ones(X_train.shape[1]).to(X_train.device) * -6.
-        max_bounds = torch.ones(X_train.shape[1]).to(X_train.device) * 6.
+        min_bounds = torch.ones(X_train.shape[1]).to(device) * X_train.min() if symmetric_bounds else X_train.min(
+            dim=0).values
+        max_bounds = torch.ones(X_train.shape[1]).to(device) * X_train.max() if symmetric_bounds else X_train.max(
+            dim=0).values
         assert bounds_margin >= 1
         expansion_margin = (bounds_margin - 1) * (max_bounds - min_bounds) / 2.
         bounds = torch.stack([min_bounds - expansion_margin, max_bounds + expansion_margin])

@@ -305,6 +305,12 @@ def run(args):
         X = sobol.draw(args.n_init).to(**tkwargs)
     X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True)
 
+    # Set bounds
+    bounds = None
+    min_bounds = torch.ones(X.shape[1]).to(X.device) * -6.
+    max_bounds = torch.ones(X.shape[1]).to(X.device) * 6.
+    bounds = torch.stack([min_bounds, max_bounds])
+
     # Get kernel hyperparameters
     kernel_hparams = {
         **{k: v for k, v in {"lengthscale": args.kernel_lengthscale,
@@ -325,7 +331,7 @@ def run(args):
     # Get GP model
     gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
                                               y_train_var=Yvar, standardize_outputs=True, normalize_inputs=True,
-                                              bounds=None, bounds_margin=1, symmetric_bounds=False)
+                                              bounds=bounds, bounds_margin=1, symmetric_bounds=False)
 
     for i in (pbar := tqdm(range(args.n_iterations))):
         pbar.set_description(f"Iteration {i + 1}")
@@ -363,7 +369,7 @@ def run(args):
                 continue
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
-                newp, newv = cma_es_concat(starting_point_for_cma, EI, tkwargs, silent=True)
+                newp, newv = cma_es_concat(starting_point_for_cma, EI, tkwargs, bounds=bounds, silent=True)
             best_points.append(newp)
             best_vals.append(newv)
         # print(f"best point {best_points[np.argmax(best_vals)]} \n with EI value {np.max(best_vals)}")
@@ -384,7 +390,7 @@ def run(args):
         # Get GP model
         gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
                                                   y_train_var=Yvar, standardize_outputs=True, normalize_inputs=True,
-                                                  bounds=None, bounds_margin=1, symmetric_bounds=False)
+                                                  bounds=bounds, bounds_margin=1, symmetric_bounds=False)
 
     return model_forward_api
 
