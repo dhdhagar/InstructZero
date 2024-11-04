@@ -349,3 +349,21 @@ def extract_json(s):
         else:
             escape = False
     return None
+
+
+def sample_by_strategy(n_cands, candidates, strategy="random"):
+    _n_cands = min(n_cands, len(candidates))
+    if strategy == "random":
+        return random.sample(candidates, _n_cands)
+    elif strategy == "top":
+        return candidates[:_n_cands]
+    elif strategy == "bottom":
+        return candidates[-_n_cands:]
+    elif strategy == "diverse":
+        # Randomly sample equally from the top, middle, and bottom
+        top = random.sample(candidates[:len(candidates) // 3], _n_cands // 3)
+        middle = random.sample(candidates[len(candidates) // 3: 2 * len(candidates) // 3], _n_cands // 3)
+        bottom = random.sample(candidates[2 * len(candidates) // 3:], _n_cands - len(top) - len(middle))
+        return top + middle + bottom
+    else:
+        raise NotImplementedError

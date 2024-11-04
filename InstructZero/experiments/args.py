@@ -168,6 +168,15 @@ def parse_args():
     parser.add_argument(
         "--debug", action=argparse.BooleanOptionalAction, default=False
     )
+    parser.add_argument(
+        "--warmstart_path", type=str
+    )
+    parser.add_argument(
+        "--n_warmstart", type=int, default=20
+    )
+    parser.add_argument(
+        "--warmstart_strategy", type=str, default='random', choices=['random', 'top', 'bottom', 'diverse']
+    )
 
     args = parser.parse_args()
     return args

@@ -8,8 +8,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from automatic_prompt_engineer import evaluate, config, template, data
 import os
 import re
+import csv
 import json
-from misc import get_test_conf, get_conf, plot_posterior, get_gp, get_coupled_kernel_data, extract_json
+from misc import get_test_conf, get_conf, plot_posterior, get_gp, get_coupled_kernel_data, extract_json, \
+    sample_by_strategy
 
 from torch.quasirandom import SobolEngine
 from torch.utils.data import DataLoader, TensorDataset
@@ -284,42 +286,39 @@ def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=F
     return X, X_struct, Y, Yvar
 
 
+def get_textual_warmstart(args):
+    with open(os.path.join(args.warmstart_path, f"{args.task}.csv"), "r") as fh:
+        cands = [row for row in csv.reader(fh)][1:]
+    cands_without_target = [cand for cand in cands if cand[0] != args.task]
+    sampled = sample_by_strategy(n_cands=args.n_warmstart, candidates=cands_without_target,
+                                 strategy=args.warmstart_strategy)
+    return sampled, cands
+
+
+def draw_from_sobol(sobol, n, bounds=None):
+    with torch.no_grad():
+        X = sobol.draw(n).to(**tkwargs)
+    if bounds is not None:
+        X = X * (bounds[1] - bounds[0]) + bounds[0]
+    return X
+
+
 def run(args):
-    # Temp hard coded warmstart
-    warmstart = [["tuxedo", 0.24267719686031342], ["thundercloud", 0.29079192876815796],
-                 ["outpatient", 0.2909504473209381], ["painter", 0.2917482256889343], ["group", 0.3045214116573334],
-                 ["riverbank", 0.31173431873321533], ["maid", 0.32068318128585815], ["chapstick", 0.3297225832939148],
-                 ["brick", 0.35291898250579834], ["hatchback", 0.38664406538009644], ["drawer", 0.3957057595252991],
-                 ["hornet", 0.4009988605976105], ["spinout", 0.4301176965236664], ["clot", 0.4447917342185974],
-                 ["understanding", 0.45225825905799866], ["money", 0.45715004205703735],
-                 ["bureau", 0.46322184801101685], ["file", 0.5185025930404663], ["wires", 0.5240160226821899],
-                 ["fixer", 0.5351479053497314]]
-
-    if args.visualize_posterior:
-        posterior_vals, viz_observed = {}, []
-        viz_repr, viz_scores = torch.load(args.visualize_posterior)
-        # sort in ascending order of y
-        _argsort = viz_scores.argsort(dim=0).squeeze()
-        viz_repr, viz_scores = viz_repr[_argsort], viz_scores[_argsort]
-
+    warmstart, all_cands = get_textual_warmstart(args)
     model_forward_api = LMForwardAPI(model_name=args.model_name, bbox_model_name=args.bbox_model,
                                      random_proj=args.random_proj, intrinsic_dim=args.intrinsic_dim,
                                      n_prompt_tokens=args.n_prompt_tokens, warmstart=warmstart, target=args.task,
                                      args=args)
 
-    # Start BO
+    # Set bounds for soft-prompts
+    min_bounds = torch.ones(model_forward_api.intrinsic_dim).to(model_forward_api.model.device) * -5.
+    max_bounds = torch.ones(model_forward_api.intrinsic_dim).to(model_forward_api.model.device) * 5.
+    bounds = torch.stack([min_bounds, max_bounds])
 
     # Get warmstart points
     sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
-    with torch.no_grad():
-        X = sobol.draw(args.n_init).to(**tkwargs)
+    X = draw_from_sobol(sobol, n=args.n_init, bounds=bounds)
     X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True, no_prompt=args.no_prompt)
-
-    # Set bounds
-    bounds = None
-    min_bounds = torch.ones(X.shape[1]).to(X.device) * -6.
-    max_bounds = torch.ones(X.shape[1]).to(X.device) * 6.
-    bounds = torch.stack([min_bounds, max_bounds])
 
     # Get kernel hyperparameters
     kernel_hparams = {
@@ -388,7 +387,7 @@ def run(args):
         if args.random_prompt:
             # Sample a random soft prompt instead of using the BO proposal
             with torch.no_grad():
-                X_next = sobol.draw(len(best_vals))
+                X_next = draw_from_sobol(sobol, n=len(best_vals), bounds=bounds)
         else:
             X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
         X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False,
@@ -409,10 +408,6 @@ def run(args):
 
 if __name__ == '__main__':
     args = parse_args()
-
-    # Temp
-    args.task = "computer"
-
     print("Script arguments:")
     print(args.__dict__)
 
