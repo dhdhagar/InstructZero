@@ -152,7 +152,7 @@ that are similar to it in meaning.\n\nWord: """
             iter_generation_errors.append(errors)
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
-            self.repeats += len(self.unique_guesses) - _len_unique_guesses
+            self.repeats += len(guesses) - (len(self.unique_guesses) - _len_unique_guesses)
 
             # Get scores
             scores = self.get_scores(guesses=guesses, target=self.target_embed)
