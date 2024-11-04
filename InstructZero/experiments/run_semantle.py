@@ -305,7 +305,7 @@ def draw_from_sobol(sobol, n, bounds=None):
 
 def run(args):
     warmstart, all_cands = get_textual_warmstart(args)
-    print(f"\nSampled textual warmstart: {warmstart}\n")
+    print(f"Sampled textual warmstart: {warmstart}\n")
 
     model_forward_api = LMForwardAPI(model_name=args.model_name, bbox_model_name=args.bbox_model,
                                      random_proj=args.random_proj, intrinsic_dim=args.intrinsic_dim,
