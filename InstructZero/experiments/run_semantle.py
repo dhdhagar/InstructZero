@@ -237,13 +237,13 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
             try:
                 extracted = extract_json(guess)
                 words = extracted[response_key]
+                if unique:
+                    words = list(set(words))
+                parsed.append(words)
             except:
                 errors.append((idx, guess))
                 parsed.append(None)
                 continue
-            if unique:
-                words = list(set(words))
-            parsed.append(words)
 
         return parsed if len(guesses) > 1 else parsed[0], errors
 
