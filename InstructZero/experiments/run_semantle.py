@@ -56,6 +56,7 @@ class LMForwardAPI:
             "do_sample": self.args.do_sample,
             "repetition_penalty": self.args.repetition_penalty,
         }
+        assert self.args.num_return_sequences == 1 or self.args.do_sample, "num_return_sequences must be 1 if not sampling"
 
         # Load bbox model
         self.bbox_model = SentenceTransformer(bbox_model_name,
@@ -116,9 +117,10 @@ that are similar to it in meaning.\n\nWord: """
         self.last_best = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
         self.opt_found = False
 
-    def eval(self, soft_prompts=None):
+    def eval(self, soft_prompts=None, no_prompt=False):
+        add_decoding_kwargs = {}
         self.soft_prompts.append(soft_prompts.to('cpu'))
-        if soft_prompts is not None:
+        if not no_prompt:
             soft_prompts = soft_prompts.to(device=self.text_prompt_embed.device, dtype=self.text_prompt_embed.dtype)
             if self.linear is not None:
                 soft_prompts = self.linear(soft_prompts)
@@ -126,13 +128,15 @@ that are similar to it in meaning.\n\nWord: """
             input_embed = torch.cat((soft_prompts, self.text_prompt_embed.repeat(soft_prompts.shape[0], 1, 1)), dim=1)
         else:
             input_embed = self.text_prompt_embed
+            add_decoding_kwargs = {
+                "num_return_sequences": self.decoding_kwargs["num_return_sequences"] * len(soft_prompts)}
 
         with torch.no_grad(), warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             outputs = self.model.generate(inputs_embeds=input_embed,
                                           max_new_tokens=self.args.max_new_tokens,
                                           pad_token_id=self.tokenizer.eos_token_id,
-                                          **self.decoding_kwargs)
+                                          **{**self.decoding_kwargs, **add_decoding_kwargs})
         guesses_raw_batch = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         self.guesses_raw.append(guesses_raw_batch)
 
@@ -249,8 +253,8 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
         return parsed if len(guesses) > 1 else parsed[0], errors
 
 
-def evaluate_soft_prompts(X, model_forward_api, args, initial=False):
-    Y_best_mean_var, Y_scores = model_forward_api.eval(X)
+def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=False):
+    Y_best_mean_var, Y_scores = model_forward_api.eval(X, no_prompt=no_prompt)
     Y = [_Y[1] for _Y in Y_best_mean_var]
     Yvar = [_Y[2] for _Y in Y_best_mean_var]
     Ybest = [_Y[0] for _Y in Y_best_mean_var]
