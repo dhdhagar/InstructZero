@@ -439,10 +439,11 @@ if __name__ == '__main__':
         "n_unique_guesses": len(runner_obj.unique_guesses),
         "max_bbox_evaluations": (args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt,
         "max_soft_prompts": args.n_init + args.batch_size * args.n_iterations,
+        "n_repeats": runner_obj.repeats,
         "n_skipped_cos_error": runner_obj.n_skipped_cos_error,
         "n_skipped_cos_cma_bound_error": runner_obj.n_skipped_cos_cma_bound_error,
         "guesses": runner_obj.guesses,
-        "args": args.__dict__,
+        "args": args.__dict__
     }
 
     with open(res_fpath, 'w') as fh:
@@ -450,8 +451,8 @@ if __name__ == '__main__':
     # Print summary of the shorter version of the results
     print(f"\nResults:\n")
     print(json.dumps({k: v for k, v in results.items() if k in [
-        "optimized", "best_so_far", "best_warmstart", "n_unique_guesses", "max_bbox_evaluations", "max_soft_prompts",
-        "n_skipped_cos_error", "n_skipped_cos_cma_bound_error"
+        "optimized", "best_so_far", "best_warmstart", "n_unique_guesses", "n_repeats", "max_bbox_evaluations",
+        "max_soft_prompts", "n_skipped_cos_error", "n_skipped_cos_cma_bound_error"
     ]}, indent=2))
 
     print(f"Saved results to: {res_fpath}\n\n")
