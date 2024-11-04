@@ -156,7 +156,7 @@ that are similar to it in meaning.\n\nWord: """
         iter_generation_errors = []
         for i, guesses_raw in enumerate(guesses_raw_batch):
             # Get unique guesses
-            guesses, errors = self.extract_guesses(guesses_raw, flatten=True)
+            guesses, errors = self.extract_guesses(guesses_raw, flatten=True, skip_errors=True)
             if guesses is None:
                 self.n_skipped_cos_error += 1
                 iter_scores_best_mean_var.append((-1., -1., 0))
@@ -244,7 +244,7 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
 
         return prompt_templatized, prompt_templatized_tkns
 
-    def extract_guesses(self, guesses_raw, unique=True, response_key="response", flatten=False):
+    def extract_guesses(self, guesses_raw, unique=True, response_key="response", flatten=False, skip_errors=False):
         if type(guesses_raw) is str:
             guesses_raw = [guesses_raw]
         guesses = [guess.strip().lower() for guess in guesses_raw]
@@ -259,11 +259,13 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
                 parsed.append(words)
             except:
                 errors.append((idx, guess))
-                parsed.append([None])
+                if not skip_errors:
+                    parsed.append([None])
                 continue
         if flatten:
-            return [word for words in parsed for word in words], errors
-        return parsed, errors
+            res = [word for words in parsed for word in words]
+            return (None if len(res) == 0 else res), errors
+        return (None if len(parsed) == 0 else parsed), errors
 
 
 def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=False):
