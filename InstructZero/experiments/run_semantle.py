@@ -137,7 +137,7 @@ that are similar to it in meaning.\n\nWord: """
             # Get unique guesses
             guesses = self.extract_guesses(guesses_raw)
             _len_unique_guesses = len(self.unique_guesses)
-            self.unique_guesses.update(guesses)
+            self.unique_guesses.update(set(guesses))
             self.repeats += len(self.unique_guesses) - _len_unique_guesses
 
             # Get scores
