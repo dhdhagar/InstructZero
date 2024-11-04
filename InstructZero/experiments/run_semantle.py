@@ -110,6 +110,7 @@ that are similar to it in meaning.\n\nWord: """
         self.repeats = 0
         self.generation_errors = []
         self.n_skipped_cos_error = 0
+        self.n_skipped_cos_cma_bound_error = 0
         self.best_warmstart = sorted(self.warmstart, key=lambda x: -x[1])[0]
         self.best_so_far = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
         self.last_best = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
@@ -365,7 +366,9 @@ def run(args):
         best_vals = []
         start_time = time.time()
         for starting_point_for_cma in starting_points:
-            if (torch.max(starting_point_for_cma) > 1 or torch.min(starting_point_for_cma) < -1):
+            # Check that each dim of starting_point_for_cma is within bounds
+            if torch.any(starting_point_for_cma < bounds[0]) or torch.any(starting_point_for_cma > bounds[1]):
+                model_forward_api.n_skipped_cos_cma_bound_error += 1
                 continue
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
