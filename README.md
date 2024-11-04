@@ -7,6 +7,17 @@ pip install botorch gpytorch
 pip install --upgrade cma
 ```
 
+Install SimCSE from source
+```shell
+git clone https://github.com/princeton-nlp/SimCSE.git && cd SimCSE
+
+vi setup.py # remove version numbers from packages (L21 and L24)
+vi simcse/tool.py # add argument `silent=False` in L52
+vi simcse/tool.py # add `disable=silent` to the tqdm call in L65
+  
+python setup.py install && cd .. && rm -rf SimCSE
+```
+
 ---
 
 # InstructZero: Efficient Instruction Optimization for Black-Box Large Language Models (ICML2024)

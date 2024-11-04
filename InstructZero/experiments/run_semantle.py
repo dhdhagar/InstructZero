@@ -12,6 +12,7 @@ import csv
 import json
 from misc import get_test_conf, get_conf, plot_posterior, get_gp, get_coupled_kernel_data, extract_json, \
     sample_by_strategy
+from simcse import SimCSE
 
 from torch.quasirandom import SobolEngine
 from torch.utils.data import DataLoader, TensorDataset
@@ -61,11 +62,14 @@ class LMForwardAPI:
         assert self.args.num_return_sequences == 1 or self.args.do_sample, "num_return_sequences must be 1 if not sampling"
 
         # Load bbox model
-        self.bbox_model = SentenceTransformer(bbox_model_name,
-                                              trust_remote_code=True,
-                                              token=args.hf_access_token,
-                                              model_kwargs={"torch_dtype": dtype},
-                                              device=args.device)
+        if bbox_model_name == "simcse":
+            self.bbox_model = SimCSE("princeton-nlp/sup-simcse-roberta-large")
+        else:
+            self.bbox_model = SentenceTransformer(bbox_model_name,
+                                                  trust_remote_code=True,
+                                                  token=args.hf_access_token,
+                                                  model_kwargs={"torch_dtype": dtype},
+                                                  device=args.device)
         self.bbox_prompt = "What is a %s?"
         self.bbox_instruction = f"""Instruct: Given the following English-language word, retrieve only those words \
 that are similar to it in meaning.\n\nWord: """
@@ -202,12 +206,15 @@ that are similar to it in meaning.\n\nWord: """
     def get_scores(self, guesses, target=None, batch_size=16, bbox_prompt=None, bbox_instruction=None):
         prompts = [(self.bbox_prompt if bbox_prompt is None else bbox_prompt) % guess for guess in guesses]
 
-        embeds = self.bbox_model.encode(prompts,
-                                        prompt=self.bbox_instruction if bbox_instruction is None else bbox_instruction,
-                                        convert_to_tensor=True,
-                                        normalize_embeddings=True,
-                                        show_progress_bar=False,
-                                        batch_size=batch_size)
+        if "simcse" in type(repr_model).__name__.lower():
+            embeds = self.bbox_model.encode(prompts, silent=True)
+        else:
+            embeds = self.bbox_model.encode(prompts,
+                                            prompt=self.bbox_instruction if bbox_instruction is None else bbox_instruction,
+                                            convert_to_tensor=True,
+                                            normalize_embeddings=True,
+                                            show_progress_bar=False,
+                                            batch_size=batch_size)
 
         if target is None:
             return embeds.squeeze()
@@ -352,7 +359,7 @@ def run(args):
         sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
         X = draw_from_sobol(sobol, n=args.n_init, bounds=bounds)
     else:
-        X = [None]*args.n_init
+        X = [None] * args.n_init
 
     X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True, no_prompt=args.no_prompt)
     data = {
@@ -373,7 +380,7 @@ def run(args):
             break
 
         if args.no_prompt:
-            X_next = [None]*args.batch_size
+            X_next = [None] * args.batch_size
         elif args.random_prompt:
             # Sample a random soft prompt instead of using the BO proposal
             with torch.no_grad():
