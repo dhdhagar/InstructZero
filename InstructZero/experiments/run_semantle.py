@@ -78,7 +78,7 @@ that are similar to it in meaning.\n\nWord: """
         # Get the textual prompt and embedding
         self.embedding = self.model.get_input_embeddings().weight.clone()
         text_prompt, input_ids = self.create_semantle_prompt(examples=self.warmstart, n_return=args.guesses_per_prompt)
-        input_ids = input_ids.to(device)
+        input_ids = torch.tensor(input_ids).to(dtype).to(device)
         self.text_prompt_embed = self.embedding[input_ids]
 
         # Soft-prompts
