@@ -122,8 +122,8 @@ that are similar to it in meaning.\n\nWord: """
 
     def eval(self, soft_prompts=None, no_prompt=False):
         add_decoding_kwargs = {}
-        self.soft_prompts.append(soft_prompts.to('cpu'))
         if not no_prompt:
+            self.soft_prompts.append(soft_prompts.to('cpu'))
             soft_prompts = soft_prompts.to(device=self.text_prompt_embed.device, dtype=self.text_prompt_embed.dtype)
             if self.linear is not None:
                 soft_prompts = self.linear(soft_prompts)
