@@ -269,8 +269,8 @@ def evaluate_soft_prompts(X, model_forward_api, args, initial=False):
     Yvar = torch.tensor(Yvar).unsqueeze(-1).to(**tkwargs)
 
     if initial:
-        print(f"\nBest initial point (mean): {Y.max().item():.3f}")
-        print(f"Best initial point (max): {max(Ybest):.3f}\n")
+        print(f"\nBest initial point (mean): {Y.max().item():.4f}")
+        print(f"Best initial point (max): {max(Ybest):.4f}\n")
 
     return X, X_struct, Y, Yvar
 
