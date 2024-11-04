@@ -289,7 +289,7 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
         input_embed = torch.cat((soft_prompts, self.text_prompt_embed.repeat(soft_prompts.shape[0], 1, 1)), dim=1)
 
         with torch.no_grad():
-            output = self.model(inputs_embeds=input_embed, return_dict=True)
+            output = self.model(inputs_embeds=input_embed, return_dict=True, output_hidden_states=True)
         breakpoint()
         if mode == "last_token":
             output_embed = last_hidden_state[:, -1]
