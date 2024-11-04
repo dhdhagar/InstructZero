@@ -454,7 +454,7 @@ if __name__ == '__main__':
     print(f"\nResults:")
     print(json.dumps({k: v for k, v in results.items() if k in [
         "optimized", "best_so_far", "best_warmstart", "n_unique_guesses", "n_repeats", "max_bbox_evaluations",
-        "max_soft_prompts", "n_skipped_cos_error", "n_skipped_cos_cma_bound_error"
+        "max_soft_prompts", "n_skipped_cos_error", "n_skipped_cos_cma_bound_error", "n_evals"
     ]}, indent=2))
 
     print(f"\nSaved results to: {res_fpath}\n\n")
