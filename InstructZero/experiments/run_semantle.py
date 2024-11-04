@@ -206,7 +206,8 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
             {"role": "user", "content": user}
         ]
         prompt_templatized = self.tokenizer.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
-        prompt_templatized_tkns = self.tokenizer.apply_chat_template(prompt, tokenize=True, add_generation_prompt=True)
+        prompt_templatized_tkns = self.tokenizer.apply_chat_template(prompt, tokenize=True, add_generation_prompt=True,
+                                                                     return_tensors="pt")
 
         return prompt_templatized, prompt_templatized_tkns
 
