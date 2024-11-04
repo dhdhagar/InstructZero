@@ -49,7 +49,7 @@ class LMForwardAPI:
             token=args.hf_access_token,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.decoding_kwargs = {
             "num_return_sequences": self.args.num_return_sequences,
             "top_p": 0.9,
@@ -144,9 +144,9 @@ that are similar to it in meaning.\n\nWord: """
             guesses, errors = self.extract_guesses(guesses_raw)
             if guesses is None:
                 self.n_skipped_cos_error += 1
-                iter_scores_best_mean_var.append((-1., -1., -1.))
-                iter_guesses_scores.append([("", -1.)]*self.args.guesses_per_prompt)
-                iter_last_best.append(("", -1.))
+                iter_scores_best_mean_var.append((-1., -1., 0))
+                iter_guesses_scores.append([("", -1.)] * self.args.guesses_per_prompt)
+                iter_last_best.append(("", -1., self.soft_prompts[-1][i]))
                 continue
             guesses = guesses[:self.args.guesses_per_prompt]
             iter_generation_errors.append(errors)
@@ -163,7 +163,7 @@ that are similar to it in meaning.\n\nWord: """
 
             guesses_scores = sorted(list(zip(guesses, scores)), key=lambda x: x[1])
             iter_guesses_scores.append(guesses_scores)
-            iter_last_best.append(guesses_scores[-1])
+            iter_last_best.append(guesses_scores[-1][0], guesses_scores[-1][1], self.soft_prompts[-1][i])
 
             # Update best so far
             if guesses_scores[-1][1] > self.best_so_far[1]:
@@ -405,7 +405,7 @@ if __name__ == '__main__':
     print(f"\nUsing a total of {args.n_init + args.batch_size * args.n_iterations} soft-prompts")
     print(
         f"\nUsing a total of {args.n_init + args.batch_size * args.guesses_per_prompt * args.n_iterations} bbox evaluations")
-    print(set_all_seed(args.seed))
+    print("\n" + set_all_seed(args.seed) + "\n")
     runner_obj = run(args=args)
 
     os.makedirs(OUT_DIR, exist_ok=True)
