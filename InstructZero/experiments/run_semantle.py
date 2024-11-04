@@ -247,7 +247,7 @@ def evaluate_soft_prompts(X, model_forward_api, args, initial=False):
 
     if initial:
         print(f"Best initial point (mean): {Y.max().item():.3f}")
-        print(f"Best initial point (max): {Ybest.max().item():.3f}")
+        print(f"Best initial point (max): {max(Ybest):.3f}")
 
     return X, X_struct, Y, Yvar
 
