@@ -352,7 +352,6 @@ def run(args):
 
         # Fit the GP after the new set of observations
         if requires_optim:
-            start_time = time.time()
             fit_gpytorch_model(gp_mll)
         if args.verbose:
             print(f"\nLearned GP mean = {gp_model.mean_module.constant.item()}")
@@ -371,7 +370,6 @@ def run(args):
         starting_points = X[starting_idxs]
         best_points = []
         best_vals = []
-        start_time = time.time()
         for starting_point_for_cma in starting_points:
             # Check that each dim of starting_point_for_cma is within bounds
             if torch.any(starting_point_for_cma < bounds[0]) or torch.any(starting_point_for_cma > bounds[1]):
