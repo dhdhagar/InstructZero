@@ -49,6 +49,7 @@ class LMForwardAPI:
             token=args.hf_access_token,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.decoding_kwargs = {
             "num_return_sequences": self.args.num_return_sequences,
             "top_p": 0.9,
@@ -109,6 +110,7 @@ that are similar to it in meaning.\n\nWord: """
         self.unique_guesses = set([x[0] for x in warmstart])
         self.repeats = 0
         self.generation_errors = []
+        self.n_skipped_cos_error = 0
         self.best_warmstart = sorted(self.warmstart, key=lambda x: -x[1])[0]
         self.best_so_far = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
         self.last_best = (self.best_warmstart[0], self.best_warmstart[1], None)  # word, score, prompt
@@ -140,6 +142,12 @@ that are similar to it in meaning.\n\nWord: """
         for i, guesses_raw in enumerate(guesses_raw_batch):
             # Get unique guesses
             guesses, errors = self.extract_guesses(guesses_raw)
+            if guesses is None:
+                self.n_skipped_cos_error += 1
+                iter_scores_best_mean_var.append((-1., -1., -1.))
+                iter_guesses_scores.append([("", -1.)]*self.args.guesses_per_prompt)
+                iter_last_best.append(("", -1.))
+                continue
             guesses = guesses[:self.args.guesses_per_prompt]
             iter_generation_errors.append(errors)
             _len_unique_guesses = len(self.unique_guesses)
@@ -231,10 +239,12 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
                 words = extracted[response_key]
             except:
                 errors.append((idx, guess))
+                parsed.append(None)
                 continue
             if unique:
                 words = list(set(words))
             parsed.append(words)
+
         return parsed if len(guesses) > 1 else parsed[0], errors
 
 
