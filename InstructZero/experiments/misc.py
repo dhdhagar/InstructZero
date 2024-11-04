@@ -194,6 +194,7 @@ def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
     if y_train_var is not None:
         y_train_var.to(y_train.dtype).to(y_train.device)
         y_train_var += 1e-6
+        assert y_train_var.min() > 0
 
     # Transforms
     outcome_transform = Standardize(m=1) if standardize_outputs else None
