@@ -401,10 +401,10 @@ def run(args):
             X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
         X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False,
                                                                          no_prompt=args.no_prompt)
-        data["X"] = torch.cat([X, X_next])
-        data["X_struct"] = torch.cat([X_struct, X_next_struct])
-        data["Y"] = torch.cat([Y, Y_next])
-        data["Yvar"] = torch.cat([Yvar, Yvar_next])
+        data["X"] = torch.cat([data["X"], X_next])
+        data["X_struct"] = torch.cat([data["X_struct"], X_next_struct])
+        data["Y"] = torch.cat([data["Y"], Y_next])
+        data["Yvar"] = torch.cat([data["Yvar"], Yvar_next])
         if not args.refit_gp:
             # Update the posterior
             raise NotImplementedError("Refitting the GP is currently required")
