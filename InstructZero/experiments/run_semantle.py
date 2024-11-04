@@ -212,6 +212,8 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
         return prompt_templatized, prompt_templatized_tkns
 
     def extract_guesses(self, guesses_raw, unique=True, response_key="response"):
+        if type(guesses_raw) is str:
+            guesses_raw = [guesses_raw]
         guesses = [guess.strip().lower() for guess in guesses_raw]
         parsed = []
         for guess in guesses:
