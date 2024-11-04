@@ -341,7 +341,6 @@ def run(args):
         if requires_optim:
             start_time = time.time()
             fit_gpytorch_model(gp_mll)
-            print(f"Fitting done in {time.time() - start_time}")
         print(f"\nLearned GP mean = {gp_model.mean_module.constant.item()}")
         if args.coupled_kernel != "none":
             print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale}")
