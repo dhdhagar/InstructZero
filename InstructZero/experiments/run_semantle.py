@@ -77,8 +77,8 @@ that are similar to it in meaning.\n\nWord: """
 
         # Get the textual prompt and embedding
         self.embedding = self.model.get_input_embeddings().weight.clone()
-        text_prompt = self.create_semantle_prompt(examples=self.warmstart, n_return=args.guesses_per_prompt)
-        input_ids = self.tokenizer(text_prompt, return_tensors="pt").input_ids.cuda()
+        text_prompt, input_ids = self.create_semantle_prompt(examples=self.warmstart, n_return=args.guesses_per_prompt)
+        input_ids = input_ids.to(device)
         self.text_prompt_embed = self.embedding[input_ids]
 
         # Soft-prompts
@@ -198,16 +198,14 @@ repeat your previous guesses!\n\nHere are your top previous guesses (from worst 
 similar to the hidden word than the previous guesses. (Note: give only a list of words in the provided JSON format, \
 e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
 
-        prompt = f"""\
-# SYSTEM:
-{system}
+        prompt = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ]
+        prompt_templatized = self.tokenizer.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
+        prompt_templatized_tkns = self.tokenizer.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
 
-# USER:
-{user}
-
-# ASSISTANT:
-"""
-        return prompt
+        return prompt_templatized, prompt_templatized_tkns
 
     def extract_guesses(self, guesses_raw, unique=True, response_key="response"):
         guesses = [guess.strip().lower() for guess in guesses_raw]
