@@ -385,8 +385,8 @@ def run(args):
         EI = ExpectedImprovement(gp_model, best_f=Y.max().item())
 
         # Sample new points to evaluate
-        starting_idxs = torch.argsort(-1 * Y.squeeze())[:args.batch_size]
-        starting_points = X[starting_idxs]
+        starting_idxs = torch.argsort(-1 * data["Y"].squeeze())[:args.batch_size]
+        starting_points = data["X"][starting_idxs]
         best_points = []
         best_vals = []
         for starting_point_for_cma in starting_points:
