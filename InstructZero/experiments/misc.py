@@ -180,7 +180,8 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
 
 
 def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
-           standardize_outputs=False, normalize_inputs=False, bounds=None, bounds_margin=1, symmetric_bounds=False):
+           standardize_outputs=False, normalize_inputs=False, bounds=None,
+           bounds_margin=1, symmetric_bounds=False):
     # Noise
     if type(y_train_var) is not torch.Tensor:  # else: fixed noise per observation
         if type(y_train_var) is list:
@@ -209,7 +210,7 @@ def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
         bounds = torch.stack([min_bounds - expansion_margin, max_bounds + expansion_margin])
     input_transform = Normalize(d=X_train.shape[-1], bounds=bounds) if normalize_inputs else None
 
-    # define matern kernel
+    # Kernel functions
     matern_kernel = MaternKernel(
         nu=2.5,
         ard_num_dims=X_train.shape[-1],
@@ -224,37 +225,30 @@ def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
         nu=2.5,
         ard_num_dims=X_struct.shape[-1],
         **{k: v for k, v in {"lengthscale_prior": GammaPrior(
-            kernel_hparams.get('lengthscale_prior_concentration'),
-            kernel_hparams.get('lengthscale_prior_rate')) if (kernel_hparams.get(
-            'lengthscale_prior_concentration') is not None and kernel_hparams.get(
-            'lengthscale_prior_rate') is not None) else None}.items() if
+            kernel_hparams.get('lengthscale_prior_concentration_instr'),
+            kernel_hparams.get('lengthscale_prior_rate_instr')) if (kernel_hparams.get(
+            'lengthscale_prior_concentration_instr') is not None and kernel_hparams.get(
+            'lengthscale_prior_rate_instr') is not None) else None}.items() if
            v is not None}
     )
 
-    if kernel_hparams.get("coupled_kernel", "scores") != "none":
-        covar_module = ScaleKernel(
-            base_kernel=CombinedStringKernel(base_latent_kernel=matern_kernel,
-                                             instruction_kernel=matern_kernel_instruction,
-                                             latent_train=X_train.double(),
-                                             instruction_train=X_struct),  # Default: per ex. dev scores for each cand
-            **{k: v for k, v in {"outputscale_prior": GammaPrior(
-                kernel_hparams.get('outputscale_prior_concentration'),
-                kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
-                'outputscale_prior_concentration') is not None and kernel_hparams.get(
-                'outputscale_prior_rate') is not None) else None}.items() if
-               v is not None}
-        )
-    else:
-        # Standard kernel
-        covar_module = ScaleKernel(
-            base_kernel=matern_kernel,
-            **{k: v for k, v in {"outputscale_prior": GammaPrior(
-                kernel_hparams.get('outputscale_prior_concentration'),
-                kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
-                'outputscale_prior_concentration') is not None and kernel_hparams.get(
-                'outputscale_prior_rate') is not None) else None}.items() if
-               v is not None}
-        )
+    covar_module = ScaleKernel(
+        base_kernel=matern_kernel if kernel_hparams.get("coupled_kernel",
+                                                        "scores") == "none" else \
+            CombinedStringKernel(
+                base_latent_kernel=matern_kernel,
+                instruction_kernel=matern_kernel_instruction,
+                latent_train=X_train.double(),
+                instruction_train=X_struct.double()
+            ),
+        **{k: v for k, v in {"outputscale_prior": GammaPrior(
+            kernel_hparams.get('outputscale_prior_concentration'),
+            kernel_hparams.get('outputscale_prior_rate')) if (kernel_hparams.get(
+            'outputscale_prior_concentration') is not None and kernel_hparams.get(
+            'outputscale_prior_rate') is not None) else None}.items() if
+           v is not None}
+    )
+
     gp_model = SingleTaskGP(X_train, y_train, train_Yvar=y_train_var, covar_module=covar_module,
                             **{k: v for k, v in {"mean_module": ConstantMean(
                                 constant_prior=NormalPrior(

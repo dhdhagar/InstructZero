@@ -165,16 +165,17 @@ that are similar to it in meaning.\n\nWord: """
         iter_last_best = []
         iter_scores_best_mean_var = []
         iter_generation_errors = []
+        n_expected_guesses = self.args.guesses_per_prompt * _decoding_kwargs["num_return_sequences"]
         for i, guesses_raw in enumerate(guesses_raw_batch):
             # Get unique guesses
             guesses, errors = self.extract_guesses(guesses_raw, flatten=True, skip_errors=True)
             if guesses is None:
                 self.n_skipped_cos_error += 1
                 iter_scores_best_mean_var.append((-1., -1., 0))
-                iter_guesses_scores.append([("", -1.)] * self.args.guesses_per_prompt)
+                iter_guesses_scores.append([("", -1.)] * n_expected_guesses)
                 iter_last_best.append(("", -1., self.soft_prompts[-1][i]))
                 continue
-            guesses = guesses[:self.args.guesses_per_prompt * _decoding_kwargs["num_return_sequences"]]
+            guesses = guesses[:n_expected_guesses]
             iter_generation_errors.append(errors)
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
@@ -190,6 +191,8 @@ that are similar to it in meaning.\n\nWord: """
             iter_scores_best_mean_var.append((scores_best, scores_mean, scores_var))
 
             guesses_scores = sorted(list(zip(guesses, scores)), key=lambda x: x[1])
+            # Add missing guess-scores
+            guesses_scores = [("", -1.)] * (n_expected_guesses - len(guesses_scores)) + guesses_scores
             iter_guesses_scores.append(guesses_scores)
             iter_last_best.append((guesses_scores[-1][0], guesses_scores[-1][1], self.soft_prompts[-1][i]))
 
