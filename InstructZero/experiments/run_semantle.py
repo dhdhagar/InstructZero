@@ -224,7 +224,7 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
             guesses_raw = [guesses_raw]
         guesses = [guess.strip().lower() for guess in guesses_raw]
         parsed = []
-        errors = 0
+        errors = []
         for idx, guess in enumerate(guesses):
             try:
                 extracted = extract_json(guess)
@@ -349,7 +349,9 @@ def run(args):
         for starting_point_for_cma in starting_points:
             if (torch.max(starting_point_for_cma) > 1 or torch.min(starting_point_for_cma) < -1):
                 continue
-            newp, newv = cma_es_concat(starting_point_for_cma, EI, tkwargs)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UserWarning)
+                newp, newv = cma_es_concat(starting_point_for_cma, EI, tkwargs, silent=True)
             best_points.append(newp)
             best_vals.append(newv)
         # print(f"best point {best_points[np.argmax(best_vals)]} \n with EI value {np.max(best_vals)}")
