@@ -109,6 +109,7 @@ that are similar to it in meaning.\n\nWord: """
         self.scores_best_mean_var = []  # per soft prompt
         self.unique_guesses = set([x[0] for x in warmstart])
         self.repeats = 0
+        self.evals = 0
         self.generation_errors = []
         self.n_skipped_cos_error = 0
         self.n_skipped_cos_cma_bound_error = 0
@@ -160,6 +161,8 @@ that are similar to it in meaning.\n\nWord: """
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
             self.repeats += len(guesses) - (len(self.unique_guesses) - _len_unique_guesses)
+            # Add ideal number of new guesses
+            self.evals += len(guesses)
 
             # Get scores
             scores = self.get_scores(guesses=guesses, target=self.target_embed)
@@ -440,6 +443,7 @@ if __name__ == '__main__':
         "n_repeats": runner_obj.repeats,
         "n_skipped_cos_error": runner_obj.n_skipped_cos_error,
         "n_skipped_cos_cma_bound_error": runner_obj.n_skipped_cos_cma_bound_error,
+        "n_evals": runner_obj.evals,
         "guesses": runner_obj.guesses,
         "args": args.__dict__
     }
