@@ -324,7 +324,7 @@ def run(args):
 
     # Get GP model
     gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
-                                              y_train_var=Yvar, standardize_outputs=True, normalize_inputs=False,
+                                              y_train_var=Yvar, standardize_outputs=True, normalize_inputs=True,
                                               bounds=None, bounds_margin=1, symmetric_bounds=False)
 
     for i in (pbar := tqdm(range(args.n_iterations))):
@@ -381,7 +381,7 @@ def run(args):
 
         # Get GP model
         gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
-                                                  y_train_var=Yvar, standardize_outputs=True, normalize_inputs=False,
+                                                  y_train_var=Yvar, standardize_outputs=True, normalize_inputs=True,
                                                   bounds=None, bounds_margin=1, symmetric_bounds=False)
 
     return model_forward_api
@@ -411,8 +411,7 @@ if __name__ == '__main__':
     os.makedirs(OUT_DIR, exist_ok=True)
     res_fpath = f"{OUT_DIR}/seed-{args.seed}.json"
 
-    print("\nFinished!!!")
-    print(f'Test score on ChatGPT: {test_score}')
+    print("\nFinished!")
 
     results = {
         "optimized": runner_obj.opt_found,
