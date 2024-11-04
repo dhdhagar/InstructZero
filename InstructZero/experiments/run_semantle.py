@@ -146,22 +146,12 @@ that are similar to it in meaning.\n\nWord: """
 
         _decoding_kwargs = {**self.decoding_kwargs, **add_decoding_kwargs}
 
-        if self.args.coupled_kernel == "instruct-embed":
-            _decoding_kwargs["output_hidden_states"] = True
-            _decoding_kwargs["return_dict_in_generate"] = True
-
         with torch.no_grad(), warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             outputs = self.model.generate(inputs_embeds=input_embed,
                                           max_new_tokens=self.args.max_new_tokens,
                                           pad_token_id=self.tokenizer.eos_token_id,
                                           **_decoding_kwargs)
-
-        if _decoding_kwargs.get("return_dict_in_generate", False):
-            breakpoint()
-            hidden_states = outputs.hidden_states
-            self.output_embeds.append(hidden_states[-1].mean(dim=1))
-            outputs = outputs.sequences
 
         guesses_raw_batch = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # Split into num_return_sequences batches if necessary
@@ -291,6 +281,24 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
             return (None if len(res) == 0 else res), errors
         return (None if len(parsed) == 0 else parsed), errors
 
+    def get_output_embed(self, soft_prompts, mode="last_token"):
+        soft_prompts = soft_prompts.to(device=self.text_prompt_embed.device, dtype=self.text_prompt_embed.dtype)
+        if self.linear is not None:
+            soft_prompts = self.linear(soft_prompts)
+        soft_prompts = soft_prompts.view(-1, self.n_prompt_tokens, self.hidden_size)
+        input_embed = torch.cat((soft_prompts, self.text_prompt_embed.repeat(soft_prompts.shape[0], 1, 1)), dim=1)
+
+        with torch.no_grad():
+            last_hidden_state = self.model(inputs_embeds=input_embed, return_dict=True).last_hidden_state
+        if mode == "last_token":
+            output_embed = last_hidden_state[:, -1]
+        elif mode == "mean":
+            output_embed = last_hidden_state.mean(dim=1)
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
+
+        return output_embed
+
 
 def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=False):
     Y_best_mean_var, Y_scores = model_forward_api.eval(X, no_prompt=no_prompt)
@@ -302,7 +310,7 @@ def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=F
         if args.coupled_kernel == "scores":
             X_struct = torch.tensor(Y_scores)
         elif args.coupled_kernel == "instruct-embed":
-            X_struct = torch.cat(model_forward_api.output_embeds[-len(X):])
+            X_struct = model_forward_api.get_output_embed(soft_prompts=X)
         else:
             X_struct = torch.zeros((len(X), 1))
 
