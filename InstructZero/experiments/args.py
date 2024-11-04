@@ -162,6 +162,9 @@ def parse_args():
     parser.add_argument(
         "--hf_access_token", type=str
     )
+    parser.add_argument(
+        "--verbose", action=argparse.BooleanOptionalAction, default=False
+    )
 
     args = parser.parse_args()
     return args

@@ -348,14 +348,15 @@ def run(args):
         if requires_optim:
             start_time = time.time()
             fit_gpytorch_model(gp_mll)
-        print(f"\nLearned GP mean = {gp_model.mean_module.constant.item()}")
-        if args.coupled_kernel != "none":
-            print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale}")
-            print(
-                f"Learned GP lengthscale (instruction) = {gp_model.covar_module.base_kernel.instruction_kernel.lengthscale}")
-        else:
-            print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.lengthscale}")
-        print(f"Learned GP outputscale = {gp_model.covar_module.outputscale.item()}\n")
+        if args.verbose:
+            print(f"\nLearned GP mean = {gp_model.mean_module.constant.item()}")
+            if args.coupled_kernel != "none":
+                print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.base_latent_kernel.lengthscale}")
+                print(
+                    f"Learned GP lengthscale (instruction) = {gp_model.covar_module.base_kernel.instruction_kernel.lengthscale}")
+            else:
+                print(f"Learned GP lengthscale = {gp_model.covar_module.base_kernel.lengthscale}")
+            print(f"Learned GP outputscale = {gp_model.covar_module.outputscale.item()}\n")
 
         EI = ExpectedImprovement(gp_model, best_f=Y.max().item())
 
