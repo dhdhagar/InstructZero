@@ -308,7 +308,7 @@ def run(args):
     sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
     with torch.no_grad():
         X = sobol.draw(args.n_init).to(**tkwargs)
-    X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True)
+    X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True, no_prompt=args.no_prompt)
 
     # Set bounds
     bounds = None
@@ -388,7 +388,8 @@ def run(args):
                 X_next = sobol.draw(len(best_vals))
         else:
             X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
-        X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False)
+        X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False,
+                                                                         no_prompt=args.no_prompt)
 
         X = torch.cat([X, X_next])
         X_struct = torch.cat([X_struct, X_next_struct])
