@@ -186,13 +186,14 @@ def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
         if type(y_train_var) is list:
             y_train_var = torch.tensor(y_train_var)
         elif y_train_var == 0:  # no noise
-            y_train_var = torch.full_like(y_train_var, 1e-6)
+            y_train_var = torch.zeros_like(y_train_var)
         elif y_train_var is not None:  # fixed noise
             y_train_var = torch.full_like(y_train, y_train_var)
         else:
             y_train_var = None  # learnable noise
     if y_train_var is not None:
         y_train_var.to(y_train.dtype).to(y_train.device)
+        y_train_var += 1e-6
 
     # Transforms
     outcome_transform = Standardize(m=1) if standardize_outputs else None

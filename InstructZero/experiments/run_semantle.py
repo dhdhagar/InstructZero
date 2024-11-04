@@ -347,7 +347,7 @@ def run(args):
             with torch.no_grad():
                 X_next = sobol.draw(len(best_vals))
         else:
-            X_next = torch.from_numpy(best_points[np.argsort(-1 * np.array(best_vals))]).float()
+            X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
         X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False)
 
         X = torch.cat([X, X_next])
