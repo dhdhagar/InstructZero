@@ -447,13 +447,13 @@ if __name__ == '__main__':
     with open(res_fpath, 'w') as fh:
         fh.write(json.dumps(results, indent=2))
     # Print summary of the shorter version of the results
-    print(f"\nResults:\n")
+    print(f"\nResults:")
     print(json.dumps({k: v for k, v in results.items() if k in [
         "optimized", "best_so_far", "best_warmstart", "n_unique_guesses", "n_repeats", "max_bbox_evaluations",
         "max_soft_prompts", "n_skipped_cos_error", "n_skipped_cos_cma_bound_error"
     ]}, indent=2))
 
-    print(f"Saved results to: {res_fpath}\n\n")
+    print(f"\nSaved results to: {res_fpath}\n\n")
 
     if args.debug:
         breakpoint()
