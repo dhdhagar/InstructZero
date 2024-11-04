@@ -223,7 +223,7 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
             if unique:
                 words = list(set(words))
             parsed.append(words)
-        return parsed
+        return parsed if len(guesses) > 1 else parsed[0]
 
 
 def evaluate_soft_prompts(X, model_forward_api, args, initial=False):
