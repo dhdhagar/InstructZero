@@ -340,11 +340,6 @@ def run(args):
         "coupled_kernel": args.coupled_kernel
     }
 
-    # Get GP model
-    gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
-                                              y_train_var=Yvar, standardize_outputs=True, normalize_inputs=True,
-                                              bounds=bounds, bounds_margin=1, symmetric_bounds=False)
-
     for i in (pbar := tqdm(range(args.n_iterations))):
         pbar.set_description(f"Iteration {i + 1}")
         pbar.set_postfix({
@@ -355,7 +350,11 @@ def run(args):
         if model_forward_api.opt_found:
             break
 
-        # Fit the GP after the new set of observations
+        # Get the GP and fit hyperparameters
+        gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
+                                                  y_train_var=Yvar, standardize_outputs=args.standardize_outputs,
+                                                  normalize_inputs=args.normalize_inputs,
+                                                  bounds=bounds, bounds_margin=1, symmetric_bounds=False)
         if requires_optim:
             fit_gpytorch_model(gp_mll)
         if args.verbose:
@@ -400,11 +399,6 @@ def run(args):
         X_struct = torch.cat([X_struct, X_next_struct])
         Y = torch.cat([Y, Y_next])
         Yvar = torch.cat([Yvar, Yvar_next])
-
-        # Get GP model
-        gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
-                                                  y_train_var=Yvar, standardize_outputs=True, normalize_inputs=True,
-                                                  bounds=bounds, bounds_margin=1, symmetric_bounds=False)
 
     return model_forward_api
 

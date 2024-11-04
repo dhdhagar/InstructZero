@@ -157,6 +157,12 @@ def parse_args():
         "--kernel_mean_prior_std", type=float
     )
     parser.add_argument(
+        "--standardize_outputs", action=argparse.BooleanOptionalAction, default=True
+    )
+    parser.add_argument(
+        "--normalize_inputs", action=argparse.BooleanOptionalAction, default=False
+    )
+    parser.add_argument(
         "--guesses_per_prompt", type=int, default=1
     )
     parser.add_argument(
