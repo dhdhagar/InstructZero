@@ -129,7 +129,9 @@ that are similar to it in meaning.\n\nWord: """
         else:
             input_embed = self.text_prompt_embed
             add_decoding_kwargs = {
-                "num_return_sequences": self.decoding_kwargs["num_return_sequences"] * len(soft_prompts)}
+                "num_return_sequences": self.decoding_kwargs["num_return_sequences"] * len(soft_prompts),
+                "do_sample": True
+            }
 
         with torch.no_grad(), warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
