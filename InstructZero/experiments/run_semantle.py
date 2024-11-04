@@ -352,7 +352,7 @@ def run(args):
         sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
         X = draw_from_sobol(sobol, n=args.n_init, bounds=bounds)
     else:
-        X = None
+        X = [None]*args.n_init
 
     X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True, no_prompt=args.no_prompt)
     data = {
@@ -373,7 +373,7 @@ def run(args):
             break
 
         if args.no_prompt:
-            X_next = None
+            X_next = [None]*args.batch_size
         elif args.random_prompt:
             # Sample a random soft prompt instead of using the BO proposal
             with torch.no_grad():
