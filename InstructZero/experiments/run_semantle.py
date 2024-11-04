@@ -76,13 +76,14 @@ that are similar to it in meaning.\n\nWord: """
             self.warmstart = list(zip(self.warmstart, warmstart_scores))
 
         # Get the textual prompt and embedding
-        self.embedding = self.model.get_input_embeddings().weight.clone()
-        text_prompt, input_ids = self.create_semantle_prompt(examples=self.warmstart, n_return=args.guesses_per_prompt)
-        self.text_prompt_embed = self.embedding[input_ids]
+        self.embeddings = self.model.get_input_embeddings().weight.clone().detach()
+        self.hidden_size = self.text_prompt_embed.shape[-1]
+        self.text_prompt, input_ids = self.create_semantle_prompt(examples=self.warmstart,
+                                                                  n_return=args.guesses_per_prompt)
+        self.text_prompt_embed = self.embeddings[input_ids].view(1, -1, self.hidden_size).detach()
 
         # Soft-prompts
         self.n_prompt_tokens = n_prompt_tokens
-        self.hidden_size = self.text_prompt_embed.shape[-1]
 
         if random_proj == "none":
             self.linear = None
