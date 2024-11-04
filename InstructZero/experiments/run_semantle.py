@@ -79,7 +79,7 @@ that are similar to it in meaning.\n\nWord: """
         self.embeddings = self.model.get_input_embeddings().weight.clone().detach()
         # Get the hull of the embeddings across dimensions
         self.embeddings_hull = torch.stack([self.embeddings.min(dim=0).values, self.embeddings.max(dim=0).values])
-        self.hidden_size = self.text_prompt_embed.shape[-1]
+        self.hidden_size = self.embeddings.shape[-1]
         self.text_prompt, input_ids = self.create_semantle_prompt(examples=self.warmstart,
                                                                   n_return=args.guesses_per_prompt)
         self.text_prompt_embed = self.embeddings[input_ids].view(1, -1, self.hidden_size).detach()
