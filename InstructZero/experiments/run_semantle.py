@@ -421,7 +421,7 @@ if __name__ == '__main__':
     # evaluation budget
     print(f"\nUsing a total of {args.n_init + args.batch_size * args.n_iterations} soft-prompts")
     print(
-        f"\nUsing a total of {args.n_init + args.batch_size * args.guesses_per_prompt * args.n_iterations} bbox evaluations")
+        f"\nUsing a total of {(args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt} bbox evaluations")
     print("\n" + set_all_seed(args.seed) + "\n")
     runner_obj = run(args=args)
 
@@ -434,12 +434,25 @@ if __name__ == '__main__':
         "optimized": runner_obj.opt_found,
         "best_so_far": (runner_obj.best_so_far[0], runner_obj.best_so_far[1]),
         "best_warmstart": (runner_obj.best_warmstart[0], runner_obj.best_warmstart[1]),
+        "n_unique_guesses": len(runner_obj.unique_guesses),
+        "max_bbox_evaluations": (args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt,
+        "max_soft_prompts": args.n_init + args.batch_size * args.n_iterations,
+        "n_skipped_cos_error": runner_obj.n_skipped_cos_error,
+        "n_skipped_cos_cma_bound_error": runner_obj.n_skipped_cos_cma_bound_error,
+        "guesses": runner_obj.guesses,
         "args": args.__dict__,
     }
 
     with open(res_fpath, 'w') as fh:
         fh.write(json.dumps(results, indent=2))
+    # Print summary of the shorter version of the results
+    print(f"\nResults:\n")
+    print(json.dumps({k: v for k, v in results.items() if k in [
+        "optimized", "best_so_far", "best_warmstart", "n_unique_guesses", "max_bbox_evaluations", "max_soft_prompts",
+        "n_skipped_cos_error", "n_skipped_cos_cma_bound_error"
+    ]}, indent=2))
 
     print(f"Saved results to: {res_fpath}\n\n")
 
-    breakpoint()
+    if args.debug:
+        breakpoint()

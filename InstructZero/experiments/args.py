@@ -165,6 +165,9 @@ def parse_args():
     parser.add_argument(
         "--verbose", action=argparse.BooleanOptionalAction, default=False
     )
+    parser.add_argument(
+        "--debug", action=argparse.BooleanOptionalAction, default=False
+    )
 
     args = parser.parse_args()
     return args
