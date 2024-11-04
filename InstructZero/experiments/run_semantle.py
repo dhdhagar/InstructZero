@@ -148,6 +148,7 @@ that are similar to it in meaning.\n\nWord: """
 
         if self.args.coupled_kernel == "instruct-embed":
             _decoding_kwargs["output_hidden_states"] = True
+            _decoding_kwargs["return_dict_in_generate"] = True
 
         with torch.no_grad(), warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
@@ -156,7 +157,7 @@ that are similar to it in meaning.\n\nWord: """
                                           pad_token_id=self.tokenizer.eos_token_id,
                                           **_decoding_kwargs)
 
-        if _decoding_kwargs.get("output_hidden_states", False):
+        if _decoding_kwargs.get("return_dict_in_generate", False):
             breakpoint()
             hidden_states = outputs.hidden_states
             self.output_embeds.append(hidden_states[-1].mean(dim=1))
