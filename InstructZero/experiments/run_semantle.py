@@ -49,7 +49,6 @@ class LMForwardAPI:
             token=args.hf_access_token,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.decoding_kwargs = {
             "num_return_sequences": self.args.num_return_sequences,
             "top_p": 0.9,
@@ -131,6 +130,7 @@ that are similar to it in meaning.\n\nWord: """
             warnings.simplefilter("ignore", category=UserWarning)
             outputs = self.model.generate(inputs_embeds=input_embed,
                                           max_new_tokens=self.args.max_new_tokens,
+                                          pad_token_id=self.tokenizer.eos_token_id,
                                           **self.decoding_kwargs)
         guesses_raw_batch = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         self.guesses_raw.append(guesses_raw_batch)
@@ -163,7 +163,7 @@ that are similar to it in meaning.\n\nWord: """
 
             guesses_scores = sorted(list(zip(guesses, scores)), key=lambda x: x[1])
             iter_guesses_scores.append(guesses_scores)
-            iter_last_best.append(guesses_scores[-1][0], guesses_scores[-1][1], self.soft_prompts[-1][i])
+            iter_last_best.append((guesses_scores[-1][0], guesses_scores[-1][1], self.soft_prompts[-1][i]))
 
             # Update best so far
             if guesses_scores[-1][1] > self.best_so_far[1]:
