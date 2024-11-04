@@ -53,6 +53,7 @@ class LMForwardAPI:
             "top_p": 0.9,
             "temperature": self.args.temperature,
             "do_sample": self.args.do_sample,
+            "repetition_penalty": self.args.repetition_penalty,
         }
 
         # Load bbox model

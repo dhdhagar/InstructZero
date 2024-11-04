@@ -109,6 +109,9 @@ def parse_args():
         "--max_new_tokens", type=int, default=1024
     )
     parser.add_argument(
+        "--repetition_penalty", type=float, default=1.0
+    )
+    parser.add_argument(
         "--num_return_sequences", type=int, default=1
     )
     parser.add_argument(
