@@ -259,7 +259,7 @@ e.g. {{\"response\": [\"word1\", \"word2\",...]}})"""
                 parsed.append(words)
             except:
                 errors.append((idx, guess))
-                parsed.append(None)
+                parsed.append([None])
                 continue
         if flatten:
             return [word for words in parsed for word in words], errors
