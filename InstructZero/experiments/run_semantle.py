@@ -316,7 +316,7 @@ def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=F
             X_struct = torch.zeros((len(X), 1))
 
     X = X.to(**tkwargs) if not no_prompt else None
-    X_struct = X_struct.to(**tkwargs).view(1, -1) if not no_prompt else None
+    X_struct = X_struct.to(**tkwargs).view(len(X), -1) if not no_prompt else None
     Y = torch.tensor(Y).unsqueeze(-1).to(**tkwargs)
     Yvar = torch.tensor(Yvar).unsqueeze(-1).to(**tkwargs)
 
