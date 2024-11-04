@@ -157,9 +157,9 @@ that are similar to it in meaning.\n\nWord: """
                                           **_decoding_kwargs)
 
         if _decoding_kwargs.get("output_hidden_states", False):
+            breakpoint()
             hidden_states = outputs.hidden_states
             self.output_embeds.append(hidden_states[-1].mean(dim=1))
-            breakpoint()
             outputs = outputs.sequences
 
         guesses_raw_batch = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
