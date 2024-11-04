@@ -329,22 +329,24 @@ def run(args):
         max_bounds = torch.ones(model_forward_api.intrinsic_dim).to(model_forward_api.model.device) * 5.
         bounds = torch.stack([min_bounds, max_bounds])
 
-        # Get kernel hyperparameters
-        kernel_hparams = {
-            **{k: v for k, v in {"lengthscale": args.kernel_lengthscale,
-                                 "lengthscale_prior_concentration": args.kernel_lengthscale_prior_concentration,
-                                 "lengthscale_prior_rate": args.kernel_lengthscale_prior_rate,
-                                 "lengthscale_instr": args.kernel_lengthscale_instr,
-                                 "lengthscale_prior_concentration_instr": args.kernel_lengthscale_prior_concentration_instr,
-                                 "lengthscale_prior_rate_instr": args.kernel_lengthscale_prior_rate_instr,
-                                 "outputscale": args.kernel_outputscale,
-                                 "outputscale_prior_concentration": args.kernel_outputscale_prior_concentration,
-                                 "outputscale_prior_rate": args.kernel_outputscale_prior_rate,
-                                 "mean": args.kernel_mean,
-                                 "mean_prior_mean": args.kernel_mean_prior_mean,
-                                 "mean_prior_std": args.kernel_mean_prior_std}.items() if v is not None and v != -100},
-            "coupled_kernel": args.coupled_kernel
-        }
+        if not args.random_prompt:
+            # Get kernel hyperparameters
+            kernel_hparams = {
+                **{k: v for k, v in {"lengthscale": args.kernel_lengthscale,
+                                     "lengthscale_prior_concentration": args.kernel_lengthscale_prior_concentration,
+                                     "lengthscale_prior_rate": args.kernel_lengthscale_prior_rate,
+                                     "lengthscale_instr": args.kernel_lengthscale_instr,
+                                     "lengthscale_prior_concentration_instr": args.kernel_lengthscale_prior_concentration_instr,
+                                     "lengthscale_prior_rate_instr": args.kernel_lengthscale_prior_rate_instr,
+                                     "outputscale": args.kernel_outputscale,
+                                     "outputscale_prior_concentration": args.kernel_outputscale_prior_concentration,
+                                     "outputscale_prior_rate": args.kernel_outputscale_prior_rate,
+                                     "mean": args.kernel_mean,
+                                     "mean_prior_mean": args.kernel_mean_prior_mean,
+                                     "mean_prior_std": args.kernel_mean_prior_std}.items() if
+                   v is not None and v != -100},
+                "coupled_kernel": args.coupled_kernel
+            }
 
         # Get warmstart points
         sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
@@ -370,7 +372,13 @@ def run(args):
         if model_forward_api.opt_found:
             break
 
-        if not args.no_prompt:
+        if args.no_prompt:
+            X_next = None
+        elif args.random_prompt:
+            # Sample a random soft prompt instead of using the BO proposal
+            with torch.no_grad():
+                X_next = draw_from_sobol(sobol, n=args.batch_size, bounds=bounds)
+        else:
             # Get the GP and fit hyperparameters
             gp_model, gp_mll, requires_optim = get_gp(data["X"], data["Y"], data["X_struct"], kernel_hparams,
                                                       y_train_var=data["Yvar"],
@@ -409,16 +417,11 @@ def run(args):
                 best_vals.append(newv)
             # print(f"best point {best_points[np.argmax(best_vals)]} \n with EI value {np.max(best_vals)}")
             # print(f"Time for CMA-ES {time.time() - start_time}")
-            if args.random_prompt:
-                # Sample a random soft prompt instead of using the BO proposal
-                with torch.no_grad():
-                    X_next = draw_from_sobol(sobol, n=len(best_vals), bounds=bounds)
-            else:
-                X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
-        else:
-            X_next = None
+            X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
+
         X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False,
                                                                          no_prompt=args.no_prompt)
+
         if not args.no_prompt:
             data["X"] = torch.cat([data["X"], X_next])
             data["X_struct"] = torch.cat([data["X_struct"], X_next_struct])
