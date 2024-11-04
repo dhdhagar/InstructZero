@@ -337,8 +337,8 @@ def run(args):
     for i in (pbar := tqdm(range(args.n_iterations))):
         pbar.set_description(f"Iteration {i + 1}")
         pbar.set_postfix({
-            "last_best": (model_forward_api.last_best[0], model_forward_api.last_best[1]),
-            "best_so_far": (model_forward_api.best_so_far[0], model_forward_api.best_so_far[1]),
+            "last_best": (model_forward_api.last_best[0], round(model_forward_api.last_best[1], 4)),
+            "best_so_far": (model_forward_api.best_so_far[0], round(model_forward_api.best_so_far[1], 4)),
         })
 
         if model_forward_api.opt_found:
