@@ -253,7 +253,7 @@ def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
                 'outputscale_prior_rate') is not None) else None}.items() if
                v is not None}
         )
-    gp_model = SingleTaskGP(X_train, y_train, train_Yvar=train_yvar, covar_module=covar_module,
+    gp_model = SingleTaskGP(X_train, y_train, train_Yvar=y_train_var, covar_module=covar_module,
                             **{k: v for k, v in {"mean_module": ConstantMean(
                                 constant_prior=NormalPrior(
                                     kernel_hparams.get('mean_prior_mean'),
