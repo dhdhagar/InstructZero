@@ -322,6 +322,12 @@ def run(args):
     sobol = SobolEngine(dimension=model_forward_api.intrinsic_dim, scramble=True, seed=args.seed)  # from [0,1]^d
     X = draw_from_sobol(sobol, n=args.n_init, bounds=bounds)
     X, X_struct, Y, Yvar = evaluate_soft_prompts(X, model_forward_api, args, initial=True, no_prompt=args.no_prompt)
+    data = {
+        "X": X,
+        "X_struct": X_struct,
+        "Y": Y,
+        "Yvar": Yvar
+    }
 
     # Get kernel hyperparameters
     kernel_hparams = {
@@ -351,8 +357,9 @@ def run(args):
             break
 
         # Get the GP and fit hyperparameters
-        gp_model, gp_mll, requires_optim = get_gp(X, Y, X_struct, kernel_hparams,
-                                                  y_train_var=Yvar, standardize_outputs=args.standardize_outputs,
+        gp_model, gp_mll, requires_optim = get_gp(data["X"], data["Y"], data["X_struct"], kernel_hparams,
+                                                  y_train_var=data["Yvar"],
+                                                  standardize_outputs=args.standardize_outputs,
                                                   normalize_inputs=args.normalize_inputs,
                                                   bounds=bounds, bounds_margin=1, symmetric_bounds=False)
         if requires_optim:
@@ -394,11 +401,13 @@ def run(args):
             X_next = torch.from_numpy(np.array(best_points)[np.argsort(-1 * np.array(best_vals))]).float()
         X_next, X_next_struct, Y_next, Yvar_next = evaluate_soft_prompts(X_next, model_forward_api, args, initial=False,
                                                                          no_prompt=args.no_prompt)
-
-        X = torch.cat([X, X_next])
-        X_struct = torch.cat([X_struct, X_next_struct])
-        Y = torch.cat([Y, Y_next])
-        Yvar = torch.cat([Yvar, Yvar_next])
+        data["X"] = torch.cat([X, X_next])
+        data["X_struct"] = torch.cat([X_struct, X_next_struct])
+        data["Y"] = torch.cat([Y, Y_next])
+        data["Yvar"] = torch.cat([Yvar, Yvar_next])
+        if not args.refit_gp:
+            # Update the posterior
+            raise NotImplementedError("Refitting the GP is currently required")
 
     return model_forward_api
 

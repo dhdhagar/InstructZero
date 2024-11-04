@@ -183,6 +183,10 @@ def parse_args():
     parser.add_argument(
         "--warmstart_strategy", type=str, default='random', choices=['random', 'top', 'bottom', 'diverse']
     )
+    parser.add_argument(
+        "--refit_gp", action=argparse.BooleanOptionalAction, default=True
+    )
+
 
     args = parser.parse_args()
     return args
