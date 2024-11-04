@@ -136,10 +136,12 @@ that are similar to it in meaning.\n\nWord: """
         iter_guesses_scores = []
         iter_last_best = []
         iter_scores_best_mean_var = []
+        iter_generation_errors = []
         for i, guesses_raw in enumerate(guesses_raw_batch):
             # Get unique guesses
-            guesses, errors = self.extract_guesses(guesses_raw)[:self.args.guesses_per_prompt]
-            self.generation_errors.append(errors)
+            guesses, errors = self.extract_guesses(guesses_raw)
+            guesses = guesses[:self.args.guesses_per_prompt]
+            iter_generation_errors.append(errors)
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
             self.repeats += len(self.unique_guesses) - _len_unique_guesses
@@ -168,6 +170,7 @@ that are similar to it in meaning.\n\nWord: """
         self.guesses.append(iter_guesses_scores)
         self.last_best = sorted(iter_last_best, key=lambda x: x[1])[-1]
         self.scores_best_mean_var.append(iter_scores_best_mean_var)
+        self.generation_errors.append(iter_generation_errors)
 
         return iter_scores_best_mean_var, [[__gs[1] for __gs in _gs] for _gs in iter_guesses_scores]
 
