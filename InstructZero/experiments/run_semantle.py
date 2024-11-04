@@ -135,14 +135,19 @@ that are similar to it in meaning.\n\nWord: """
                 "num_return_sequences": self.decoding_kwargs["num_return_sequences"] * len(soft_prompts),
                 "do_sample": True
             }
-
+        _decoding_kwargs = {**self.decoding_kwargs, **add_decoding_kwargs}
         with torch.no_grad(), warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             outputs = self.model.generate(inputs_embeds=input_embed,
                                           max_new_tokens=self.args.max_new_tokens,
                                           pad_token_id=self.tokenizer.eos_token_id,
-                                          **{**self.decoding_kwargs, **add_decoding_kwargs})
+                                          **_decoding_kwargs)
         guesses_raw_batch = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        # Split into num_return_sequences batches if necessary
+        if _decoding_kwargs["num_return_sequences"] > 1:
+            guesses_raw_batch = [
+                guesses_raw_batch[i * _decoding_kwargs["num_return_sequences"]:(i + 1) * _decoding_kwargs[
+                    "num_return_sequences"]] for i in range(len(input_embed))]
         self.guesses_raw.append(guesses_raw_batch)
 
         iter_guesses_scores = []
@@ -425,7 +430,7 @@ if __name__ == '__main__':
     # evaluation budget
     print(f"\nUsing a total of {args.n_init + args.batch_size * args.n_iterations} soft-prompts")
     print(
-        f"\nUsing a total of {(args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt} bbox evaluations")
+        f"\nUsing a total of {(args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt * args.num_return_sequences} bbox evaluations")
     print("\n" + set_all_seed(args.seed) + "\n")
     runner_obj = run(args=args)
 
@@ -439,7 +444,8 @@ if __name__ == '__main__':
         "best_so_far": (runner_obj.best_so_far[0], runner_obj.best_so_far[1]),
         "best_warmstart": (runner_obj.best_warmstart[0], runner_obj.best_warmstart[1]),
         "n_unique_guesses": len(runner_obj.unique_guesses),
-        "max_bbox_evaluations": (args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt,
+        "max_bbox_evaluations": (args.n_init + args.batch_size * args.n_iterations) * args.guesses_per_prompt * \
+                                args.num_return_sequences,
         "max_soft_prompts": args.n_init + args.batch_size * args.n_iterations,
         "n_repeats": runner_obj.repeats,
         "n_skipped_cos_error": runner_obj.n_skipped_cos_error,
