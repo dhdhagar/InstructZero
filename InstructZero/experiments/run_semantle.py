@@ -288,7 +288,7 @@ def evaluate_soft_prompts(X, model_forward_api, args, initial=False, no_prompt=F
 
 def get_textual_warmstart(args):
     with open(os.path.join(args.warmstart_path, f"{args.task}.csv"), "r") as fh:
-        cands = [row for row in csv.reader(fh)][1:]
+        cands = [(row[0], float(row[1])) for row in csv.reader(fh)][1:]
     cands_without_target = [cand for cand in cands if cand[0] != args.task]
     sampled = sample_by_strategy(n_cands=args.n_warmstart, candidates=cands_without_target,
                                  strategy=args.warmstart_strategy)
