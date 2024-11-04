@@ -163,7 +163,7 @@ that are similar to it in meaning.\n\nWord: """
                 iter_guesses_scores.append([("", -1.)] * self.args.guesses_per_prompt)
                 iter_last_best.append(("", -1., self.soft_prompts[-1][i]))
                 continue
-            guesses = guesses[:self.args.guesses_per_prompt]
+            guesses = guesses[:self.args.guesses_per_prompt * _decoding_kwargs["num_return_sequences"]]
             iter_generation_errors.append(errors)
             _len_unique_guesses = len(self.unique_guesses)
             self.unique_guesses.update(set(guesses))
