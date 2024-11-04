@@ -206,7 +206,7 @@ that are similar to it in meaning.\n\nWord: """
     def get_scores(self, guesses, target=None, batch_size=16, bbox_prompt=None, bbox_instruction=None):
         prompts = [(self.bbox_prompt if bbox_prompt is None else bbox_prompt) % guess for guess in guesses]
 
-        if "simcse" in type(repr_model).__name__.lower():
+        if "simcse" in type(self.bbox_model).__name__.lower():
             embeds = self.bbox_model.encode(prompts, silent=True)
         else:
             embeds = self.bbox_model.encode(prompts,
