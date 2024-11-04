@@ -182,13 +182,15 @@ def plot_posterior(posterior_vals, posterior_cands, path, animate=False, anim_in
 def get_gp(X_train, y_train, X_struct, kernel_hparams, y_train_var=None,
            standardize_outputs=False, normalize_inputs=False, bounds=None, bounds_margin=1, symmetric_bounds=False):
     # Noise
-    if type(y_train_var) is not torch.tensor:  # else: fixed noise per observation
+    if type(y_train_var) is not torch.Tensor:  # else: fixed noise per observation
         if type(y_train_var) is list:
             y_train_var = torch.tensor(y_train_var)
         elif y_train_var == 0:  # no noise
             y_train_var = torch.full_like(y_train_var, 1e-6)
         elif y_train_var is not None:  # fixed noise
             y_train_var = torch.full_like(y_train, y_train_var)
+        else:
+            y_train_var = None  # learnable noise
     if y_train_var is not None:
         y_train_var.to(y_train.dtype).to(y_train.device)
 
