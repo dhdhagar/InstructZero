@@ -40,6 +40,7 @@ for task_dir in ${task_dirs[@]}; do
           --bbox_model="simcse" \
           --bbox_cache="none" \
           --n_init=10 \
+          --seed=$seed \
           --batch_size=1 \
           --n_iterations=200 \
           --hf_access_token="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" \
@@ -61,6 +62,7 @@ for task_dir in ${task_dirs[@]}; do
           --bbox_model="simcse" \
           --bbox_cache="none" \
           --n_init=10 \
+          --seed=$seed \
           --batch_size=1 \
           --n_iterations=200 \
           --hf_access_token="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" \
@@ -82,6 +84,7 @@ for task_dir in ${task_dirs[@]}; do
             --bbox_model="simcse" \
             --bbox_cache="none" \
             --n_init=10 \
+            --seed=$seed \
             --batch_size=1 \
             --n_iterations=200 \
             --hf_access_token="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" \
