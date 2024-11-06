@@ -32,7 +32,7 @@ for task_dir in ${task_dirs[@]}; do
         python InstructZero/experiments/run_semantle.py \
           --warmstart_path=$task_dir \
           --task=$task_name \
-          --out_file="rand" \
+          --out_file="rand-$sampling" \
           --coupled_kernel="none" \
           --random_prompt \
           --$sampling \
@@ -49,27 +49,29 @@ for task_dir in ${task_dirs[@]}; do
           --standardize_outputs \
           --normalize_inputs
 
-        # No prompt
-        echo "Running with: no prompt"
-        python InstructZero/experiments/run_semantle.py \
-          --warmstart_path=$task_dir \
-          --task=$task_name \
-          --out_file="repeated-sampling" \
-          --coupled_kernel="none" \
-          --no_prompt \
-          --$sampling \
-          --model_name="meta-llama/Llama-3.1-8B-Instruct" \
-          --bbox_model="simcse" \
-          --bbox_cache="none" \
-          --n_init=10 \
-          --seed=$seed \
-          --batch_size=1 \
-          --n_iterations=200 \
-          --hf_access_token="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" \
-          --repetition_penalty=1.1 \
-          --guesses_per_prompt=5 \
-          --standardize_outputs \
-          --normalize_inputs
+        # No prompt (only when do_sample is enabled)
+        if [ $sampling == "do_sample" ]; then
+          echo "Running with: no prompt"
+          python InstructZero/experiments/run_semantle.py \
+            --warmstart_path=$task_dir \
+            --task=$task_name \
+            --out_file="repeated-sampling" \
+            --coupled_kernel="none" \
+            --no_prompt \
+            --$sampling \
+            --model_name="meta-llama/Llama-3.1-8B-Instruct" \
+            --bbox_model="simcse" \
+            --bbox_cache="none" \
+            --n_init=10 \
+            --seed=$seed \
+            --batch_size=1 \
+            --n_iterations=200 \
+            --hf_access_token="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" \
+            --repetition_penalty=1.1 \
+            --guesses_per_prompt=5 \
+            --standardize_outputs \
+            --normalize_inputs
+        fi
 
         for coupled_kernel in "scores" "instruct-embed" "none"; do
           echo "Running with: $coupled_kernel coupled kernel"
@@ -77,7 +79,7 @@ for task_dir in ${task_dirs[@]}; do
           python InstructZero/experiments/run_semantle.py \
             --warmstart_path=$task_dir \
             --task=$task_name \
-            --out_file="coupled-$coupled_kernel" \
+            --out_file="coupled-$coupled_kernel-$sampling" \
             --coupled_kernel=$coupled_kernel \
             --$sampling \
             --model_name="meta-llama/Llama-3.1-8B-Instruct" \
